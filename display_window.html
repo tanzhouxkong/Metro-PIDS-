@@ -916,6 +916,27 @@
             let nextStep = (meta.dirType === 'up' || meta.dirType === 'outer') ? 1 : -1;
             let prevStep = (meta.dirType === 'up' || meta.dirType === 'outer') ? -1 : 1;
 
+            // Helper: Get next station index, respecting topology but IGNORING skip status (Show Suspended)
+            const getNextRaw = (idx, step) => {
+                let next = idx + step;
+                let len = sts.length;
+                
+                // Determine Range (Short Turn)
+                let sIdx = (meta.startIdx !== undefined && meta.startIdx !== -1) ? parseInt(meta.startIdx) : 0;
+                let eIdx = (meta.termIdx !== undefined && meta.termIdx !== -1) ? parseInt(meta.termIdx) : len - 1;
+                let minIdx = Math.min(sIdx, eIdx);
+                let maxIdx = Math.max(sIdx, eIdx);
+
+                if (meta.mode === 'loop') {
+                    if (next >= len) next = 0;
+                    if (next < 0) next = len - 1;
+                    return next;
+                } else {
+                    if (next > maxIdx || next < minIdx) return idx; // Hit boundary
+                    return next;
+                }
+            };
+
             // Show a slice of stations: Dynamic balancing
             // Target: 7 stations total (1 Curr + others)
             let displaySts = [];
@@ -928,7 +949,7 @@
             // 1. Try to get up to 5 Future stations
             let temp = curr;
             for(let i=0; i<5; i++) {
-                let next = getNextValidSt(temp, nextStep);
+                let next = getNextRaw(temp, nextStep);
                 if (next === temp || next === curr || futureSts.includes(sts[next])) break;
                 futureSts.push(sts[next]);
                 temp = next;
@@ -938,7 +959,7 @@
             let neededPast = targetTotal - 1 - futureSts.length;
             temp = curr;
             for(let i=0; i<neededPast; i++) {
-                let prev = getNextValidSt(temp, prevStep);
+                let prev = getNextRaw(temp, prevStep);
                 if (prev === temp || prev === curr || pastSts.includes(sts[prev]) || futureSts.includes(sts[prev])) break;
                 pastSts.push(sts[prev]);
                 temp = prev;
@@ -954,7 +975,7 @@
                 
                 temp = lastFutureIdx;
                 for(let i=0; i<neededFuture; i++) {
-                    let next = getNextValidSt(temp, nextStep);
+                    let next = getNextRaw(temp, nextStep);
                     if (next === temp || next === curr || futureSts.includes(sts[next]) || pastSts.includes(sts[next])) break;
                     futureSts.push(sts[next]);
                     temp = next;
