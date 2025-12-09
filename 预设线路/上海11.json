@@ -1,0 +1,286 @@
+{
+  "meta": {
+    "lineName": "11号线",
+    "themeColor": "#80225F",
+    "mode": "normal",
+    "dirType": "both"
+  },
+  "stations": [
+    {
+      "name": "花桥站",
+      "en": "Huaqiao",
+      "xfer": [
+        {
+          "line": "苏州地铁11号线",
+          "color": "#1890ff"
+        }
+      ]
+    },
+    {
+      "name": "光明路站",
+      "en": "Guangming Lu",
+      "xfer": []
+    },
+    {
+      "name": "兆丰路站",
+      "en": "Zhaofeng Lu",
+      "xfer": []
+    },
+    {
+      "name": "安亭站",
+      "en": "Anting",
+      "xfer": []
+    },
+    {
+      "name": "上海汽车城站",
+      "en": "Shanghai Auto City",
+      "xfer": []
+    },
+    {
+      "name": "昌吉东路站",
+      "en": "East Changji Lu",
+      "xfer": []
+    },
+    {
+      "name": "上海赛车场站",
+      "en": "Shanghai Circuit",
+      "xfer": []
+    },
+    {
+      "name": "嘉定北站",
+      "en": "North Jiading",
+      "xfer": []
+    },
+    {
+      "name": "嘉定西站",
+      "en": "West Jiading",
+      "xfer": []
+    },
+    {
+      "name": "白银路站",
+      "en": "Baiyin Lu",
+      "xfer": []
+    },
+    {
+      "name": "嘉定新城站",
+      "en": "Jiading Xincheng",
+      "xfer": []
+    },
+    {
+      "name": "马陆站",
+      "en": "Malu",
+      "xfer": []
+    },
+    {
+      "name": "陈翔公路站",
+      "en": "Chenxiang Gonglu",
+      "xfer": []
+    },
+    {
+      "name": "南翔站",
+      "en": "Nanxiang",
+      "xfer": []
+    },
+    {
+      "name": "桃浦新村站",
+      "en": "Taopu Xincun",
+      "xfer": []
+    },
+    {
+      "name": "武威路站",
+      "en": "Wuwei Lu",
+      "xfer": []
+    },
+    {
+      "name": "祁连山路站",
+      "en": "Qilianshan Lu",
+      "xfer": []
+    },
+    {
+      "name": "李子园站",
+      "en": "Liziyuan",
+      "xfer": []
+    },
+    {
+      "name": "上海西站",
+      "en": "Shanghai West Railway Station",
+      "xfer": [
+        {
+          "line": "15号线",
+          "color": "#BBA786"
+        }
+      ]
+    },
+    {
+      "name": "真如站",
+      "en": "Zhenru",
+      "xfer": [
+        {
+          "line": "14号线",
+          "color": "#8A2BE2"
+        }
+      ]
+    },
+    {
+      "name": "枫桥路站",
+      "en": "Fengqiao Lu",
+      "xfer": []
+    },
+    {
+      "name": "曹杨路站",
+      "en": "Caoyang Lu",
+      "xfer": [
+        {
+          "line": "3号线",
+          "color": "#FFD700"
+        },
+        {
+          "line": "4号线",
+          "color": "#52c41a"
+        },
+        {
+          "line": "14号线",
+          "color": "#8A2BE2"
+        }
+      ]
+    },
+    {
+      "name": "隆德路站",
+      "en": "Longde Lu",
+      "xfer": [
+        {
+          "line": "13号线",
+          "color": "#F19D00"
+        }
+      ]
+    },
+    {
+      "name": "江苏路站",
+      "en": "Jiangsu Lu",
+      "xfer": [
+        {
+          "line": "2号线",
+          "color": "#FFD700"
+        }
+      ]
+    },
+    {
+      "name": "交通大学站",
+      "en": "Jiaotong University",
+      "xfer": [
+        {
+          "line": "10号线",
+          "color": "#C0A8D1"
+        }
+      ]
+    },
+    {
+      "name": "徐家汇站",
+      "en": "Xujiahui",
+      "xfer": [
+        {
+          "line": "1号线",
+          "color": "#ED3229"
+        },
+        {
+          "line": "9号线",
+          "color": "#71C5E8"
+        }
+      ]
+    },
+    {
+      "name": "上海游泳馆站",
+      "en": "Shanghai Swimming Center",
+      "xfer": []
+    },
+    {
+      "name": "龙华站",
+      "en": "Longhua",
+      "xfer": [
+        {
+          "line": "12号线",
+          "color": "#007B65"
+        }
+      ]
+    },
+    {
+      "name": "云锦路站",
+      "en": "Yunjin Lu",
+      "xfer": []
+    },
+    {
+      "name": "龙耀路站",
+      "en": "Longyao Lu",
+      "xfer": []
+    },
+    {
+      "name": "东方体育中心站",
+      "en": "Oriental Sports Center",
+      "xfer": [
+        {
+          "line": "6号线",
+          "color": "#D9027D"
+        },
+        {
+          "line": "8号线",
+          "color": "#0099CC"
+        }
+      ]
+    },
+    {
+      "name": "三林站",
+      "en": "Sanlin",
+      "xfer": []
+    },
+    {
+      "name": "三林东站",
+      "en": "East Sanlin",
+      "xfer": []
+    },
+    {
+      "name": "浦三路站",
+      "en": "Pusan Lu",
+      "xfer": []
+    },
+    {
+      "name": "康恒路站",
+      "en": "Kangheng Lu",
+      "xfer": []
+    },
+    {
+      "name": "御桥站",
+      "en": "Yuqiao",
+      "xfer": [
+        {
+          "line": "18号线",
+          "color": "#D7000F"
+        }
+      ]
+    },
+    {
+      "name": "罗山路站",
+      "en": "Luoshan Lu",
+      "xfer": [
+        {
+          "line": "16号线",
+          "color": "#99CC66"
+        }
+      ]
+    },
+    {
+      "name": "秀沿路站",
+      "en": "Xiuyan Lu",
+      "xfer": []
+    },
+    {
+      "name": "康新公路站",
+      "en": "Kangxin Gonglu",
+      "xfer": []
+    },
+    {
+      "name": "迪士尼站",
+      "en": "Disney Resort",
+      "xfer": []
+    }
+  ]
+}
