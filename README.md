@@ -1,67 +1,69 @@
-# Metro PIDS Simulator (Web V3)
+# Metro-PIDS
 
-这是一个基于 Web 技术的地铁乘客信息显示系统 (PIDS) 模拟器。它包含一个用于操作和配置的**控制面板**，以及一个用于展示乘客信息的**显示端**。
+这是一个基于网页/Electron 的地铁站台信息显示（PIDS）控制与显示端项目。它包含一个控制面板（管理员界面）用于编辑线路、设置快捷键、启动自动播放等；以及一个用于投屏的显示端页面，用于实时展示下一站/车门信息与到站提示。
 
-该项目旨在模拟地铁车厢内的 LCD 动态地图显示屏，支持自定义线路、站点、换乘信息控制。
+## 主要功能
 
-## ✨ 主要功能
+- 多线路支持：可以创建/删除/切换多条线路，每条线路包含站点列表与运行方向信息。
+- 实时显示：Display 窗口用于投屏展示当前站、下一站、对侧开门提示等信息。
+- 快捷键控制：支持配置“下一步/上一站/到达/发车”等快捷键，并在显示端按键时转发控制端执行。
+- 自动播放（Autoplay）：支持按键或定时自动前进，带倒计时与暂停/继续功能。
+- 主题与视觉：支持浅色/深色主题与一些视觉定制。
+- 文件管理：可从文件夹加载线路 JSON、刷新并保存当前线路到打开的文件夹（需要主机 API 支持）。
 
-*   **双屏架构**：控制端 (`control_panel.html`) 与显示端 (`display_window.html` / `index30.html`) 分离，通过 `BroadcastChannel` 实现毫秒级实时同步。
-*   **多线路管理**：支持创建、切换和管理多条线路，每条线路拥有独立的站点和配置。
-*   **灵活的线路配置**：
-    *   支持 **单线 (Linear)** 和 **环线 (Loop)** 模式。
-    *   支持 **上行/下行** 及 **内环/外环** 切换。
-    *   自定义站点名称（中文/英文）。
-    *   自定义换乘线路及颜色。
-    *   支持设置站点“暂缓开通”或“跳停”。
-*   **实时控制**：
-    *   进站 / 出站 / 下一站 / 上一站 控制。
-    *   开门方向指示（左/右/双侧）。
-    *   键盘快捷键支持 (空格键下一步, A进站, D出站)。
-*   **可视化编辑器**：
-    *   拖拽排序站点。
-    *   折叠式编辑面板。
-    *   实时预览站点属性。
-*   **数据管理**：
-    *   支持 JSON 格式的配置导入与导出。
-    *   浏览器本地存储 (LocalStorage) 自动保存进度。
-*   **录制工具**：内置自动报站定时器，方便进行屏幕录制。
+## 文件结构（简要）
 
-## 🚀 使用说明
+- `index.html`：控制端（Admin / Control Panel），包含设置、快捷键、线路编辑、保存与广播到 Display。
+- `display_window.html`：显示端（Display），接收 BroadcastChannel 消息并渲染实时信息，同时将按键事件转发回控制端。
+- `main.js`, `preload.js`：项目的主进程/预加载脚本（Electron 环境时使用）。
+- `json/`：示例或存放线路 JSON 的文件夹（视项目运行环境而定）。
 
-1.  **启动系统**：
-    *   在浏览器中打开 `control_panel.html`。
-    *   点击控制面板中的 **"打开显示端窗口（PIDS）"** 按钮，弹出显示端页面。
-    *   *建议将显示端窗口拖拽到副屏全屏显示，或调整为合适的分辨率。*
+## 安装与运行
 
-2.  **线路设置**：
-    *   在左侧“线路设置”区域修改线路名称、主题色和运行模式。
-    *   在“站点管理”区域添加或编辑站点。
-    *   点击站点列表中的“铅笔”图标编辑站点，支持拖拽调整顺序。
+开发环境依赖 Node/npm（可运行在普通浏览器或打包为 Electron 应用）：
 
-3.  **运行控制**：
-    *   **上一站/下一站**：切换当前目标站点。
-    *   **进站 (A)**：模拟列车到达站点（显示“当前站”）。
-    *   **出站 (D)**：模拟列车离开站点（显示“下一站”）。
-    *   **下一步 (Space)**：自动在“进站”和“出站”状态间循环。
+1. 安装依赖：
 
-## 📂 文件结构
+```powershell
+npm install
+```
 
-*   `control_panel.html`: **控制面板** - 管理员操作界面，包含所有设置和控制逻辑。
-*   `index30.html` / `pids_display.html`: **显示端** - 模拟车厢屏幕的展示界面。
-*   `*.json`: 预设的线路配置文件（如北京地铁1号线、上海地铁2号线等）。
+2. 启动开发/构建（视项目 scripts 而定）：
 
-## 🛠️ 技术栈
+```powershell
+npm run build
+# 或者
+npm start
+```
 
-*   HTML5 / CSS3 (Flexbox, Grid)
-*   JavaScript (ES6+)
-*   BroadcastChannel API (跨窗口通信)
-*   FontAwesome (图标库)
+> 如果在 Electron 环境中运行，请确保 `window.electronAPI` 提供文件读写、打开文件夹等能力。
 
-## ⚠️ 注意事项
+## 快速使用说明
 
-*   请使用现代浏览器（Chrome, Edge, Firefox）以获得最佳体验。
-*   由于使用了 `BroadcastChannel`，控制端和显示端必须在**同源**（同一个域名或同一个本地文件路径）下打开才能通信。
+1. 打开 `index.html`（在浏览器或 Electron 中）作为控制端。
+2. 在左侧打开显示端窗口（`Open Display` 按钮），会打开 `display_window.html`。
+3. 在 `Settings` 面板中配置快捷键（默认 `Enter` 为下一步），保存后即时生效。
+4. 点击 `保存当前线路` 会调用主机 API 将当前线路 JSON 写回到打开的线路文件夹；若未启用主机 API 会有浏览器下载回退或警告。
+![image](https://github.com/tanzhouxkong/Metro-PIDS-/blob/main/png/5927dbe6eb3380ee4f61f83f5b6d994b.png)
+![image](https://github.com/tanzhouxkong/Metro-PIDS-/blob/main/png/63a4d5e4b05ec6912bcc4e98e9d1de10.png)
+![image](https://github.com/tanzhouxkong/Metro-PIDS-/blob/main/png/6f74a3b7be2c2ececb5856631ec8f2d8.png)
+![image](https://github.com/tanzhouxkong/Metro-PIDS-/blob/main/png/80b6c62fab4707431c4903e3baba8e36.png)
+![image](https://github.com/tanzhouxkong/Metro-PIDS-/blob/main/png/bcf833f16cfeb516c2e8a4f262fedf02.png)
+## 开发与调试提示
+
+- BroadcastChannel 名称为 `metro_pids_v3`，控制端与显示端通过该频道同步与转发按键。
+- 键名处理：项目代码中对键名做了规范化（`NumpadEnter -> Enter`, `Space` 统一处理, 单字符字母统一为 `KeyX`），以保证显示端/控制端在不同浏览器或键盘配置下的一致性。
+- 如果在显示端按键没有生效，请打开两端开发者工具观察控制台日志（control <- CMD_KEY / display -> forwarding key），这些日志能帮助诊断键名和匹配问题。
+
+## 贡献
+
+欢迎在 GitHub 仓库提交 issue/PR：
+https://github.com/tanzhouxkong/Metro-PIDS-
+
+## 许可证
+
+请参考仓库中的 LICENSE（若有）。
 
 ---
-*Created by GitHub Copilot*
+
+如需我把 README 转成更短的项目简介或增加截图与演示步骤，我可以继续完善。
