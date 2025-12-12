@@ -166,9 +166,14 @@
         .route-arrows .a1 { animation-delay: 0s; }
         .route-arrows .a2 { animation-delay: 0.25s; }
         .route-arrows .a3 { animation-delay: 0.5s; }
+        /* Also apply same animation to any icon with a1/a2/a3 classes (e.g., linear-map arrows) */
+        .a1, .a2, .a3 { animation: r-arrow-anim 1.5s infinite; }
+        .a1 { animation-delay: 0s; }
+        .a2 { animation-delay: 0.25s; }
+        .a3 { animation-delay: 0.5s; }
         @keyframes r-arrow-anim {
-            0%, 100% { opacity: 0.3; transform: scale(1); color: var(--contrast-color); }
-            50% { opacity: 1; transform: scale(1.3); color: var(--contrast-color); }
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.3); }
         }
         
         @keyframes pulse-yellow {
@@ -359,6 +364,7 @@
             font-size: 32px; 
             z-index: 15; 
             filter: drop-shadow(0 0 5px rgba(241, 196, 15, 0.8)); 
+            
         }
         
         #rec-tip { position: absolute; top: 10px; left: 10px; background: #fff; color: red; padding: 5px 15px; border-radius: 20px; font-weight: bold; animation: blink 1s infinite; display: none; z-index: 9999; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
@@ -965,46 +971,83 @@
             let displaySts = [];
             let curr = rt.idx;
             let targetTotal = 7;
-            
+
+            // Short-turn range (ensure we don't show stations outside start/term)
+            let sIdx = (meta.startIdx !== undefined && meta.startIdx !== -1) ? parseInt(meta.startIdx) : 0;
+            let eIdx = (meta.termIdx !== undefined && meta.termIdx !== -1) ? parseInt(meta.termIdx) : sts.length - 1;
+            let minIdx = Math.min(sIdx, eIdx);
+            let maxIdx = Math.max(sIdx, eIdx);
+
             let futureSts = [];
             let pastSts = [];
-            
-            // 1. Try to get up to 5 Future stations
+
+            // 1. Try to get up to 5 Future stations (respecting short-turn range)
             let temp = curr;
-            for(let i=0; i<5; i++) {
+            for (let i = 0; i < 5; i++) {
                 let next = getNextRaw(temp, nextStep);
                 if (next === temp || next === curr || futureSts.includes(sts[next])) break;
+                if (next < minIdx || next > maxIdx) break; // don't go outside short-turn range
                 futureSts.push(sts[next]);
                 temp = next;
             }
-            
-            // 2. Fill remaining slots with Past stations (if Future is short)
-            let neededPast = targetTotal - 1 - futureSts.length;
+
+            // 2. Ensure a minimum number of Past stations are shown (至少 2 个已过站)
+            const minPast = 2;
             temp = curr;
-            for(let i=0; i<neededPast; i++) {
+            for (let i = 0; i < minPast; i++) {
                 let prev = getNextRaw(temp, prevStep);
                 if (prev === temp || prev === curr || pastSts.includes(sts[prev]) || futureSts.includes(sts[prev])) break;
+                if (prev < minIdx || prev > maxIdx) break; // don't go outside short-turn range
                 pastSts.push(sts[prev]);
                 temp = prev;
             }
-            
-            // 3. If still short (Start of Line case), try adding more Future
+
+            // 3. Fill remaining past slots if needed (to reach balanced display)
+            let neededPast = Math.max(0, targetTotal - 1 - futureSts.length);
+            let morePastNeeded = neededPast - pastSts.length;
+            temp = pastSts.length > 0 ? sts.indexOf(pastSts[pastSts.length - 1]) : curr;
+            for (let i = 0; i < morePastNeeded; i++) {
+                let prev = getNextRaw(temp, prevStep);
+                if (prev === temp || prev === curr || pastSts.includes(sts[prev]) || futureSts.includes(sts[prev])) break;
+                if (prev < minIdx || prev > maxIdx) break;
+                pastSts.push(sts[prev]);
+                temp = prev;
+            }
+
+            // 4. If still short, try adding more Future (but never beyond short-turn range)
             let currentTotal = 1 + futureSts.length + pastSts.length;
             if (currentTotal < targetTotal) {
                 let neededFuture = targetTotal - currentTotal;
                 // Resume from last future station
-                let lastFutureSt = futureSts.length > 0 ? futureSts[futureSts.length-1] : sts[curr];
+                let lastFutureSt = futureSts.length > 0 ? futureSts[futureSts.length - 1] : sts[curr];
                 let lastFutureIdx = sts.indexOf(lastFutureSt);
-                
+
                 temp = lastFutureIdx;
-                for(let i=0; i<neededFuture; i++) {
+                for (let i = 0; i < neededFuture; i++) {
                     let next = getNextRaw(temp, nextStep);
                     if (next === temp || next === curr || futureSts.includes(sts[next]) || pastSts.includes(sts[next])) break;
+                    if (next < minIdx || next > maxIdx) break;
                     futureSts.push(sts[next]);
                     temp = next;
                 }
             }
             
+            // Trim to ensure total displayed stations does not exceed targetTotal
+            currentTotal = 1 + pastSts.length + futureSts.length;
+            if (currentTotal > targetTotal) {
+                let overflow = currentTotal - targetTotal;
+                // Prefer to remove from future first
+                while (overflow > 0 && futureSts.length > 0) {
+                    futureSts.pop();
+                    overflow--;
+                }
+                // Then remove farthest past stations but keep at least minPast
+                while (overflow > 0 && pastSts.length > minPast) {
+                    pastSts.pop();
+                    overflow--;
+                }
+            }
+
             // Combine: Past (reversed) + Curr + Future
             pastSts.reverse();
             displaySts = [...pastSts, sts[curr], ...futureSts];
@@ -1014,28 +1057,21 @@
             if (isReversed) {
                 displaySts.reverse();
             }
-
-            // Apply Gradient to Track (Style 2)
-            // We need to know where Current is in the slice (displaySts)
+            // ===== 样式2 开始 =====
+            // 为轨道应用渐变（样式2）
+            // 我们将把 box 先插入 DOM，然后基于每个节点的真实位置计算渐变中心与箭头位置，
+            // 避免仅用索引计算导致的横向偏移问题（当站名长度或布局改变时会出现）。
             track.style.border = 'none';
             track.style.height = '18px';
-            let currPos = displaySts.indexOf(sts[curr]);
-            let pct = (currPos + 0.5) / displaySts.length * 100;
-            
-            if (isReversed) {
-                // Down/Inner: Future(Left) -> Past(Right)
-                track.style.background = `linear-gradient(to right, var(--theme) ${pct}%, #ccc ${pct}%)`;
-            } else {
-                // Up/Outer: Past(Left) -> Future(Right)
-                track.style.background = `linear-gradient(to right, #ccc ${pct}%, var(--theme) ${pct}%)`;
-            }
 
             displaySts.forEach(st => {
-                // Find real index for mkNode to work correctly
+                // 找到真实索引以便 mkNode 正确工作
                 let realIdx = sts.indexOf(st);
                 let node = mkNode(st, realIdx, 'linear');
-                
-                // Apply Style 1 "Current" effect if this is the current station
+                // 标记真实索引，便于后续定位
+                try { node.dataset.realIdx = String(realIdx); } catch(e){}
+
+                // 如果这是当前站，应用样式1的“当前”效果
                 if (realIdx === rt.idx) {
                     let dot = node.querySelector('.dot');
                     if (dot) {
@@ -1047,18 +1083,104 @@
                     let name = node.querySelector('.name');
                     if(name) name.style.color = '#000';
                 }
-                
+
                 box.appendChild(node);
             });
 
-            // Arrows for Style 2 (All segments)
+            // 把 box 插入 DOM，以便读取布局信息（getBoundingClientRect）
+            mapPanel.appendChild(box);
+
+            // 基于真实节点位置计算渐变中心（当前站中心在切片内的位置）
+            const nodeEls = Array.from(box.querySelectorAll('.l-node'));
+            if (nodeEls.length > 0) {
+                const boxRect = box.getBoundingClientRect();
+                const centers = nodeEls.map(el => {
+                    const r = el.getBoundingClientRect();
+                    return (r.left - boxRect.left) + (r.width / 2);
+                });
+                // 找到当前节点在 nodeEls 中的索引
+                let currNodeIdx = nodeEls.findIndex(el => Number(el.dataset.realIdx) === rt.idx);
+                if (currNodeIdx === -1) currNodeIdx = Math.floor(nodeEls.length / 2);
+
+                const currCenter = centers[currNodeIdx];
+                const pct = Math.max(0, Math.min(100, (currCenter / boxRect.width) * 100));
+
+                // Determine if travel terminal is present in this slice and clamp highlight
+                let travelTerminalIdx = (meta.dirType === 'up' || meta.dirType === 'outer') ? eIdx : sIdx;
+                let termNodeIdxInSlice = nodeEls.findIndex(el => Number(el.dataset.realIdx) === travelTerminalIdx);
+
+                if (termNodeIdxInSlice !== -1) {
+                    // Terminal is visible in this slice — clamp theme highlight between current and terminal
+                    const termCenter = centers[termNodeIdxInSlice];
+                    const termPct = Math.max(0, Math.min(100, (termCenter / boxRect.width) * 100));
+
+                    // Compute ordered bounds
+                    const leftPct = Math.min(pct, termPct);
+                    const rightPct = Math.max(pct, termPct);
+
+                    // Build gradient with theme only between leftPct and rightPct
+                    track.style.background = `linear-gradient(to right, #ccc 0%, #ccc ${leftPct}%, var(--theme) ${leftPct}%, var(--theme) ${rightPct}%, #ccc ${rightPct}%, #ccc 100%)`;
+                } else {
+                    if (isReversed) {
+                        // 下行/内环: highlight left of current
+                        track.style.background = `linear-gradient(to right, var(--theme) ${pct}%, #ccc ${pct}%)`;
+                    } else {
+                        // 上行/外环: highlight right of current
+                        track.style.background = `linear-gradient(to right, #ccc ${pct}%, var(--theme) ${pct}%)`;
+                    }
+                }
+
+                // 绘制箭头：基于相邻节点中心的中点位置
+               // for (let i = 0; i < centers.length - 1; i++) {
+               //     const midpoint = (centers[i] + centers[i+1]) / 2;
+                //    let wrapper = document.createElement('div');
+                //    wrapper.style.position = 'absolute';
+                //    wrapper.style.left = midpoint + 'px';
+                //    wrapper.style.top = '50%';
+                //    wrapper.style.zIndex = '10';
+                 //   wrapper.style.transform = `translate(-50%, -50%) ${isReversed ? 'rotate(180deg)' : ''}`;
+                 //   let arrow = document.createElement('div');
+                 //   arrow.innerHTML = `<i class="fas fa-chevron-right"></i>`;
+                 //   arrow.style.color = '#fff';
+                 //   arrow.style.fontSize = '24px';
+                  //  wrapper.appendChild(arrow);
+                   // box.appendChild(wrapper);
+                //}
+            }
+
+            // ===== 样式2 结束 =====
+          /*
+            功能概述：
+            这段代码在一个父容器（box）内为多个“段落/站点”之间生成箭头图标，用于在显示窗口上表示方向或连接关系。每两个相邻项之间会在中心位置生成一组紧凑排列的三枚箭头图标。
+
+            实现细节：
+            - 外层循环：遍历 displaySts，循环到 displaySts.length - 1，目的是在每对相邻项之间放置箭头（即放置在 i 与 i+1 之间）。
+            - 位置计算：
+                - arrowCenter = (i + 1) * 160：把箭头中心定位在基于索引计算的水平位置上（160px 作为每个项之间的水平间距或基线），因此箭头被放置在两项的中间位置。
+                - 对于每个箭头组，使用内层循环 k = -1..1 创建三枚箭头，offset 为 k * 20，产生 -20、0、+20 的水平偏移，从而实现三枚箭头紧凑并列的排列（看起来更厚或更明显）。
+            - DOM 元素构造与样式：
+                - 为每枚箭头创建一个 wrapper（div）并设为 position: absolute，这样可以通过 left/top 精确定位到父容器的具体坐标。
+                - wrapper.style.left 使用 arrowCenter + k*20 + 'px' 设置水平位置；wrapper.style.top = '50%' 配合 wrapper.style.transform = 'translate(-50%, -50%)' 用来将 wrapper 的中心点对准给定的 left/top（实现水平与垂直居中效果）。
+                - wrapper.style.zIndex = '10' 确保箭头位于其他元素之上。
+                - 如果 isReversed 为真，则在 transform 中追加 ' rotate(180deg)'，将箭头整组旋转 180° 实现方向翻转。
+            - 箭头元素：
+                - 在 wrapper 内创建一个 arrow（div），通过 innerHTML 插入 <i class="fas fa-chevron-right"></i>（Font Awesome 的右向箭头图标）。
+                - 设置箭头颜色为白色（#fff）并将字体大小设为 24px，使图标可见且大小合适。
+            - 节点挂载：
+                - 每个 arrow 被 append 到对应的 wrapper，再将 wrapper append 到外层容器 box，从而把生成的箭头插入到页面 DOM 中。
+
+            注意事项与可能的改进：
+            - 使用 innerHTML 插入图标依赖外部字体图标库（如 Font Awesome），请确保页面已引入相应样式文件。
+            - 如果想减少 DOM 节点或提升性能，可考虑合并为单个 SVG 或使用 CSS 伪元素绘制箭头，或通过克隆已创建的模板元素来复用节点。
+            - left/top 的坐标计算假定父容器的定位上下文已经正确（例如 box 为相对定位或其他），否则绝对定位的结果可能不符合预期。
+            */
             for (let i = 0; i < displaySts.length - 1; i++) {
                 let arrowCenter = (i + 1) * 160; 
                 
                 for (let k = -1; k <= 1; k++) {
                     let wrapper = document.createElement('div');
                     wrapper.style.position = 'absolute';
-                    wrapper.style.left = (arrowCenter + k * 20) + 'px'; // Compact
+                    wrapper.style.left = (arrowCenter + k * 20) + 'px'; // 紧凑排列
                     wrapper.style.top = '50%';
                     wrapper.style.zIndex = '10';
                     
@@ -1485,7 +1607,18 @@
                     wrapper.style.transform = `translate(-50%, -50%) ${rot}`;
                     
                     let arrow = document.createElement('div');
-                    arrow.innerHTML = `<i class="fas fa-chevron-right"></i>`;
+                    // Create the inner icon: only add animation classes when this is the current active segment
+                    // Map k to class; reverse order when direction is down/inner
+                    let cls = k === -1 ? 'a1' : (k === 0 ? 'a2' : 'a3');
+                    if (m.dirType === 'down' || m.dirType === 'inner') {
+                        // reverse mapping: leftmost should be a3 in reversed direction
+                        cls = k === -1 ? 'a3' : (k === 0 ? 'a2' : 'a1');
+                    }
+                    if (isCurrSeg) {
+                        arrow.innerHTML = `<i class="fas fa-chevron-right ${cls}"></i>`;
+                    } else {
+                        arrow.innerHTML = `<i class="fas fa-chevron-right"></i>`;
+                    }
                     arrow.style.color = isCurrSeg ? '#f1c40f' : '#fff'; // Yellow if current, else White
                     arrow.style.fontSize = '24px';
                     
