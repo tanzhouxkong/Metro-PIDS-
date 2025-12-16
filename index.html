@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metro PIDS V2 - Control Panel</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* ================= 全局定义 ================= */
+        :root { --theme: #00b894; --font: "Microsoft YaHei", sans-serif; --gold: #ffaa00; --dark: #2d3436;
+            /* Light theme variables */
+            --bg: #f0f2f5;
+            --card: #ffffff;
+            --card-border: #f0f0f0;
+            --text: #2d3436;
+            --muted: #9aa0a6;
+            --rail-bg: rgba(255,255,255,0.65);
+            --rail-border: rgba(0,0,0,0.04);
+            --panel-bg: #ffffff;
+            --accent: #00b894;
+            --btn-blue-bg: #1677ff;
+            --btn-green-bg: var(--accent);
+            --btn-org-bg: #ff9f5a;
+            --btn-red-bg: #ff6b6b;
+            --btn-gray-bg: #d9dde0;
+            --btn-gray-text: var(--text);
+            --btn-text: #ffffff;
+            --win-close-bg: linear-gradient(90deg,#ff6b6b,#ff4d4d);
+            --win-close-color: #fff;
+        }
+
+        /* Dark theme overrides */
+        html.dark {
+            --bg: #0b1116;
+            --card: #091018;
+            --card-border: rgba(255,255,255,0.04);
+            --text: #e6eef6;
+            --muted: #9aa6b2;
+            --rail-bg: rgba(7, 16, 24, 0.65);
+            --panel-bg: #09151b;
+            --accent: #22c1a3;
+        }
+
+        body, html { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background: transparent; font-family: var(--font); color: var(--text); }
+        * { box-sizing: border-box; user-select: none; outline: none; }
+
+        /* Add shadow to main app container to match display window */
+        #app { width: 100%; height: 100%; box-shadow: 0px 0px 10px rgba(0,0,0,0.5); }
+
+        /* 基础样式类，供 Vue 组件使用 */
+        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--card-border); }
+        .btn { border: none; padding: 10px 16px; border-radius: 8px; background: var(--accent); color: var(--btn-text); font-weight: bold; cursor: pointer; transition: transform 0.18s, box-shadow 0.18s, filter 0.18s; display: inline-flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+        .btn:hover { filter: brightness(1.06); transform: translateY(-2px); box-shadow: 0 12px 34px rgba(0,0,0,0.12); }
+        .win-btn { transition: background 0.2s, color 0.2s; }
+        .win-btn:hover { background: rgba(0,0,0,0.1); }
+        .win-btn:active { background: rgba(0,0,0,0.2); }
+        .win-btn.close:hover { background: #e81123; color: #fff; }
+        .win-btn.close:active { background: #bf0f1d; }
+        html.dark .win-btn:hover { background: rgba(255,255,255,0.1); }
+        html.dark .win-btn:active { background: rgba(255,255,255,0.2); }
+        .ft-btn { transition: transform 0.2s, filter 0.2s, box-shadow 0.2s; }
+        .ft-btn:hover { filter: brightness(0.9); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1); }
+        .ft-btn:active { filter: brightness(0.8); transform: translateY(1px); }
+        html.dark .ft-btn:hover { filter: brightness(0.95); }
+        html.dark .ft-btn:active { filter: brightness(0.9); }
+        .b-blue { background: var(--btn-blue-bg); } 
+        .b-green { background: var(--btn-green-bg); } 
+        .b-org { background: var(--btn-org-bg); } 
+        .b-red { background: var(--btn-red-bg); } 
+        .b-gray { background: var(--btn-gray-bg); color: var(--btn-gray-text); }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 3px; }
+        html.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="app"></div>
+    <script type="module" src="./src/main.js"></script>
+</body>
+</html>

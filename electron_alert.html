@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' 'self' data:; script-src 'unsafe-inline' 'self' data:;">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>提示</title>
+  <style>
+    :root{ --card: #ffffff; --text: #222; --divider: rgba(0,0,0,0.06); --accent: #1976d2 }
+    html,body{height:100%;margin:0;padding:0;background:rgba(0,0,0,0.45); font-family: "Microsoft YaHei", sans-serif}
+    .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;}
+    .card{
+      width:680px; max-width:92%; background: var(--card); border-radius:8px; box-shadow:0 8px 28px rgba(0,0,0,0.3);
+      padding:18px; color:var(--text);
+    }
+    .title{font-weight:800; margin-bottom:8px; font-size:18px}
+    .msg{margin-bottom:18px; white-space:pre-wrap}
+    .actions{display:flex; justify-content:flex-end; gap:8px}
+    button{padding:8px 14px; border-radius:6px; border:none; cursor:pointer}
+    .ok{background:var(--accent);color:#fff}
+    .cancel{background:var(--card);border:1px solid var(--divider)}
+  </style>
+</head>
+<body>
+  <div class="overlay">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--divider); padding-bottom:12px;">
+        <div class="title" id="title">提示</div>
+        <div style="display:flex; gap:8px;">
+          <button id="btnClose" class="cancel">取消</button>
+        </div>
+      </div>
+      <div class="msg" id="msg"></div>
+      <div class="actions" id="actions">
+        <button class="cancel" id="btnCancel" style="display:none">取消</button>
+        <button class="ok" id="btnOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      function qs(key){
+        const s = location.search.substring(1); const params = new URLSearchParams(s); return params.get(key);
+      }
+      const id = qs('id') || '';
+      const type = qs('type') || 'alert';
+      const title = qs('title') || '提示';
+      const msg = qs('msg') || '';
+      document.getElementById('title').textContent = decodeURIComponent(title);
+      document.getElementById('msg').textContent = decodeURIComponent(msg);
+      const btnOk = document.getElementById('btnOk');
+      const btnCancel = document.getElementById('btnCancel');
+      if(type === 'confirm') btnCancel.style.display = '';
+
+      function respond(result){
+        try{
+          if(window && window.electronAPI && typeof window.electronAPI.sendAlertResponse === 'function'){
+            window.electronAPI.sendAlertResponse({ id, result: !!result });
+          } else {
+            const { ipcRenderer } = require('electron');
+            ipcRenderer.send('electron-alert-response', { id, result: !!result });
+          }
+        }catch(e){
+          try{ window.opener && window.opener.postMessage({ t:'ELECTRON_ALERT_RESPONSE', id, result: !!result }, '*'); }catch(e){}
+        }
+        window.close();
+      }
+
+      btnOk.addEventListener('click', ()=> respond(true));
+      btnCancel.addEventListener('click', ()=> respond(false));
+      btnClose.addEventListener('click', ()=> respond(false));
+
+      // allow Enter/Esc
+      window.addEventListener('keydown', (ev)=>{
+        if(ev.key === 'Enter') respond(true);
+        if(ev.key === 'Escape') respond(false);
+      });
+    })();
+  </script>
+</body>
+</html>
