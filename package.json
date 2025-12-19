@@ -1,16 +1,30 @@
 {
   "name": "metro-pids",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Metro-PIDS ",
   "author": "",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder"
+    "build": "electron-builder",
+    "build:sdk": "node ./scripts/build-display-sdk.js",
+    "publish:gh": "electron-builder --publish=always",
+    "deploy:gitee": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-to-gitee.ps1 -RepoUrl https://gitee.com/tanzhouxkong/Metro-PIDS-.git -Branch pages"
   },
   "build": {
     "appId": "com.Metro-PIDS.myapp",
     "productName": "metro-pids",
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://gitee.com/tanzhouxkong/Metro-PIDS-/raw/pages/releases/"
+      },
+      {
+        "provider": "github",
+        "owner": "tanzhouxkong",
+        "repo": "Metro-PIDS-"
+      }
+    ],
     "directories": {
       "output": "dist"
     },
@@ -33,6 +47,7 @@
   },
   "devDependencies": {
     "electron": "^25.0.0",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "electron-updater": "^5.4.3"
   }
 }

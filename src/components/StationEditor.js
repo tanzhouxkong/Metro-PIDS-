@@ -24,6 +24,8 @@ export default {
       skip: false,
       door: 'left',
       dock: 'both',
+      // turnback: 'none' | 'pre' | 'post'
+      turnback: 'none',
       xfer: []
     });
 
@@ -41,6 +43,7 @@ export default {
         form.skip = newVal.skip || false;
         form.door = newVal.door || 'left';
         form.dock = newVal.dock || 'both';
+        form.turnback = newVal.turnback || 'none';
         // Deep copy xfer array to avoid mutating prop directly
         form.xfer = newVal.xfer ? JSON.parse(JSON.stringify(newVal.xfer)) : [];
       }
@@ -213,6 +216,24 @@ export default {
             ])
           ])
           ]),
+            // Turnback option (pre/post/none)
+            h('div', { style: { flex: '1' } }, [
+              h('div', { style: { fontSize: '12px', fontWeight: 'bold', color: 'var(--muted)', marginBottom: '6px' } }, '折返位置 (Turnback)'),
+              h('div', { style: { display: 'flex', background: 'var(--bg)', padding: '4px', borderRadius: '6px' } }, [
+                h('button', {
+                  style: { flex: '1', border: 'none', padding: '8px', borderRadius: '4px', background: form.turnback === 'none' ? 'var(--card)' : 'transparent', color: form.turnback === 'none' ? 'var(--text)' : 'var(--muted)', fontWeight: 'bold', boxShadow: form.turnback === 'none' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s' },
+                  onClick: () => form.turnback = 'none'
+                }, '无'),
+                h('button', {
+                  style: { flex: '1', border: 'none', padding: '8px', borderRadius: '4px', background: form.turnback === 'pre' ? 'var(--card)' : 'transparent', color: form.turnback === 'pre' ? 'var(--text)' : 'var(--muted)', fontWeight: 'bold', boxShadow: form.turnback === 'pre' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s' },
+                  onClick: () => form.turnback = 'pre'
+                }, '站前折返'),
+                h('button', {
+                  style: { flex: '1', border: 'none', padding: '8px', borderRadius: '4px', background: form.turnback === 'post' ? 'var(--card)' : 'transparent', color: form.turnback === 'post' ? 'var(--text)' : 'var(--muted)', fontWeight: 'bold', boxShadow: form.turnback === 'post' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s' },
+                  onClick: () => form.turnback = 'post'
+                }, '站后折返')
+              ])
+            ]),
 
           // Transfers
           h('div', {

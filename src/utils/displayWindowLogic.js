@@ -402,13 +402,13 @@ const displayStyleSheet = `
   position: absolute;
   bottom: 50%;
   left: 50%;
-  /* shift up from center by half dot + border + gap to align with track */
-  transform: translate(-50%, calc(-1 * (calc(var(--dot-inner-size) / 2) + var(--dot-border) + var(--dot-gap))));
+  /* shift up from center by half dot + border + further reduced gap to bring closer to track */
+  transform: translate(-50%, calc(-1 * (calc(var(--dot-inner-size) / 2) + var(--dot-border) + var(--dot-gap) - 10px)));
   margin-bottom: 0;
   display: flex;
   flex-direction: column-reverse;
   align-items: center;
-  gap: 4px;
+  gap: 1px;
   z-index: 5;
 }
 #display-app .l-node .info-top .x-tag {
@@ -738,10 +738,10 @@ const displayStyleSheet = `
 }
 #display-app .as-m-node.past .as-m-name { color: #999; }
 #display-app .as-xfer-row {
-    position: absolute;
-    top: -30px;
-    display: flex;
-    gap: 5px;
+  position: absolute;
+  top: -12px;
+  display: flex;
+  gap: 3px;
 }
 #display-app .as-xfer-badge {
     background: #f39c12;
@@ -1216,12 +1216,36 @@ export function initDisplayWindow(rootElement) {
     }
     if (lArrow) lArrow.classList.remove('active');
     if (rArrow) rArrow.classList.remove('active');
-    if (st.door === 'right') {
+    // determine effective door side, considering station-level "turnback" setting
+    const invertDoor = (door) => {
+      if (!door) return 'left';
+      if (door === 'left') return 'right';
+      if (door === 'right') return 'left';
+      return door; // 'both' or others
+    };
+
+    // prefer an explicit effective door stored in payload (e.g. _effectiveDoor),
+    // otherwise fall back to configured door and dynamic turnback calculation
+    let effectiveDoor = (st._effectiveDoor) ? st._effectiveDoor : (st.door || 'left');
+    if (!st._effectiveDoor) {
+      try {
+        const startIdx = (meta.startIdx !== undefined && meta.startIdx !== -1) ? parseInt(meta.startIdx) : 0;
+        const termIdx = (meta.termIdx !== undefined && meta.termIdx !== -1) ? parseInt(meta.termIdx) : sts.length - 1;
+        const atTerminalForDir = (meta.dirType === 'up' || meta.dirType === 'outer') ? (rt.idx === termIdx) : (rt.idx === startIdx);
+        if (st.turnback && st.turnback !== 'none' && atTerminalForDir) {
+          effectiveDoor = invertDoor(effectiveDoor);
+        }
+      } catch (e) {
+        // ignore and use configured door
+      }
+    }
+
+    if (effectiveDoor === 'right') {
       if (doorCn) doorCn.innerText = '右侧开门';
       if (doorEn) doorEn.innerText = 'Doors will be opened on the right side';
       if (doorIcon) doorIcon.style.transform = 'scaleX(-1)';
       if (rArrow) rArrow.classList.add('active');
-    } else if (st.door === 'both') {
+    } else if (effectiveDoor === 'both') {
       if (doorCn) doorCn.innerText = '双侧开门';
       if (doorEn) doorEn.innerText = 'Doors will be opened on both sides';
       if (doorIcon) doorIcon.className = 'fas fa-dungeon';

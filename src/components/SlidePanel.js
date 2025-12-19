@@ -5,14 +5,47 @@ import { usePidsState } from '../composables/usePidsState.js'
 import { useController } from '../composables/useController.js'
 import { useSettings } from '../composables/useSettings.js'
 import dialogService from '../utils/dialogService.js'
+import { ref } from 'vue'
 
 export default {
   name: 'SlidePanel',
   setup() {
     const { uiState, closePanel } = useUIState()
-    const autoplay = useAutoplay()
-    const { state: pidsState, sync: syncState } = usePidsState()
-    const { sync } = useController()
+        const { state: pidsState, sync: syncState } = usePidsState()
+        const { next: controllerNext, sync, getStep } = useController()
+
+        // shouldStop: stop autoplay if we've reached a terminal station
+        function shouldStop() {
+            try {
+                if (!pidsState || !pidsState.appData) return false;
+                const meta = pidsState.appData.meta || {};
+                const idx = (pidsState.rt && typeof pidsState.rt.idx === 'number') ? pidsState.rt.idx : 0;
+                // Determine the allowed range for linear mode (short-turn)
+                const sIdx = (meta.startIdx !== undefined && meta.startIdx !== -1) ? parseInt(meta.startIdx) : 0;
+                const eIdx = (meta.termIdx !== undefined && meta.termIdx !== -1) ? parseInt(meta.termIdx) : (pidsState.appData.stations ? pidsState.appData.stations.length - 1 : 0);
+                const minIdx = Math.min(sIdx, eIdx);
+                const maxIdx = Math.max(sIdx, eIdx);
+
+                // If loop mode, do not auto-stop
+                if (meta.mode === 'loop') return false;
+
+                // Determine travel direction: getStep > 0 means moving towards higher indexes
+                const step = (typeof getStep === 'function') ? getStep() : 1;
+                const terminalIdx = step > 0 ? maxIdx : minIdx;
+
+                // Only stop when current index equals the terminal in travel direction
+                // and we are in the 'arrived' state (rt.state === 0). This avoids
+                // immediately stopping if autoplay starts at the starting station.
+                const rtState = pidsState.rt && (typeof pidsState.rt.state === 'number') ? pidsState.rt.state : 0;
+                if (idx === terminalIdx && rtState === 0) return true;
+            } catch (e) {
+                console.error('shouldStop error', e);
+            }
+            return false;
+        }
+
+        const autoplay = useAutoplay(controllerNext, shouldStop)
+        const { isPlaying, isPaused, nextIn, start, stop, togglePause } = autoplay
     const fileIO = useFileIO(pidsState)
     const { settings, saveSettings } = useSettings()
 
@@ -92,21 +125,277 @@ export default {
         }
     }
 
-    return {
-      uiState,
-      closePanel,
-      ...autoplay,
-      fileIO,
-      pidsState,
-      switchLine, newLine, delLine, saveCfg, clearShortTurn, applyShortTurn,
-      settings, saveSettings, keyMapDisplay, recordKey, clearKey, resetKeys
+        // Update UI state
+        const updateState = ref({ checking: false, available: false, downloading: false, progress: 0, info: null });
+
+        const version = ref('未知');
+        (async () => {
+            try {
+                if (typeof window !== 'undefined' && window.electronAPI && window.electronAPI.getAppVersion) {
+                    const r = await window.electronAPI.getAppVersion();
+                    if (r && r.ok && r.version) version.value = r.version;
+                }
+            } catch (e) {}
+        })();
+
+        // Setup update listeners (if running in Electron)
+        if (typeof window !== 'undefined' && window.electronAPI) {
+            try {
+                window.electronAPI.onUpdateAvailable((info) => {
+                    updateState.value.checking = false;
+                    updateState.value.available = true;
+                    updateState.value.info = info || null;
+                    askUser(`发现新版本 ${info && info.version ? info.version : ''}，是否下载更新？`).then(async (ok) => {
+                        if (ok) {
+                            updateState.value.downloading = true;
+                            const r = await window.electronAPI.downloadUpdate();
+                            if (!r || !r.ok) {
+                                showMsg('下载失败：' + (r && r.error ? r.error : '未知错误'));
+                                updateState.value.downloading = false;
+                            }
+                        }
+                    });
+                });
+
+                window.electronAPI.onUpdateNotAvailable(() => {
+                    updateState.value.checking = false;
+                    showMsg('当前已是最新版本');
+                });
+
+                window.electronAPI.onUpdateError((err) => {
+                    updateState.value.checking = false;
+                    showMsg('更新错误：' + String(err));
+                });
+
+                window.electronAPI.onUpdateProgress((p) => {
+                    try {
+                        if (p && p.percent) updateState.value.progress = Math.round(p.percent);
+                        else if (p && p.transferred && p.total) updateState.value.progress = Math.round((p.transferred / p.total) * 100);
+                    } catch (e) {}
+                });
+
+                window.electronAPI.onUpdateDownloaded((info) => {
+                    updateState.value.downloading = false;
+                    updateState.value.progress = 100;
+                    askUser('更新已下载，是否现在重启并安装？').then((ok) => {
+                        if (ok) {
+                            window.electronAPI.installUpdate();
+                        }
+                    });
+                });
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        async function checkForUpdateClicked() {
+            if (typeof window === 'undefined' || !window.electronAPI) {
+                showMsg('当前不是 Electron 环境，无法检查更新');
+                return;
+            }
+            updateState.value.checking = true;
+            updateState.value.available = false;
+            try {
+                const r = await window.electronAPI.checkForUpdates();
+                if (!r || !r.ok) {
+                    updateState.value.checking = false;
+                    showMsg('检查更新失败：' + (r && r.error ? r.error : '未知'));
+                }
+            } catch (e) {
+                updateState.value.checking = false;
+                showMsg('检查更新出错：' + String(e));
+            }
+        }
+
+    // Display SDK / Third-party helpers
+    // display preview / third-party helpers removed
+
+    // Autoplay start wrapper that locks UI and shows modal warning
+    async function startWithLock(intervalSec = 8) {
+        if (uiState.autoLocked) return;
+        const ok = await askUser('开启自动播放将锁定控制面板，期间请不要操作控制界面，是否继续？');
+        if (!ok) return;
+        uiState.autoLocked = true;
+        try {
+            // Ensure display window is opened and bound
+            try {
+                let url = '';
+                if (settings.display.source === 'builtin') url = 'display_window.html';
+                else if (settings.display.source === 'gitee') url = settings.display.url || '';
+                else url = settings.display.url || '';
+                if (url) {
+                    try {
+                        const w = window.open(url, '_blank');
+                        if (w) {
+                            // expose reference for postMessage fallback
+                            try { window.__metro_pids_display_popup = w; window.__metro_pids_display_popup_ready = false; } catch(e){}
+                            // wait for popup to be ready before initial sync
+                            try {
+                                await waitForPopupReady(w, 3000);
+                            } catch (e) {
+                                // ignore timeout or cross-origin issues
+                            }
+                        }
+                    } catch(e) {}
+                }
+            } catch (e) {}
+
+            // send initial sync to ensure display shows current state
+            try { sync(); } catch(e){}
+
+            start(intervalSec);
+        } catch (e) {
+            uiState.autoLocked = false;
+            throw e;
+        }
     }
-  },
+
+    // Wait for popup window to finish loading. For same-origin popups we can
+    // listen to 'load' or check document.readyState. For cross-origin popups
+    // access to document will throw, so we fall back to a short delay.
+    function waitForPopupReady(winRef, timeoutMs = 2000) {
+        return new Promise((resolve, reject) => {
+            if (!winRef) return reject(new Error('no window'));
+            let done = false;
+            const cleanup = () => { done = true; try { if (winRef && winRef.removeEventListener) winRef.removeEventListener('load', onLoad); } catch(e){} };
+            const onLoad = () => {
+                try { window.__metro_pids_display_popup_ready = true; } catch (e) {}
+                cleanup();
+                resolve(true);
+            };
+            try {
+                // Try attach load listener (works for same-origin)
+                if (winRef.addEventListener) {
+                    winRef.addEventListener('load', onLoad, { once: true });
+                }
+                // Also poll readyState for same-origin
+                let elapsed = 0;
+                const step = 100;
+                const poll = setInterval(() => {
+                    try {
+                        if (done) { clearInterval(poll); return; }
+                        if (!winRef || winRef.closed) { clearInterval(poll); cleanup(); return reject(new Error('closed')); }
+                        let rs = null;
+                        try { rs = winRef.document && winRef.document.readyState; } catch (e) { rs = null; }
+                        if (rs === 'complete' || rs === 'interactive') {
+                            try { window.__metro_pids_display_popup_ready = true; } catch (e) {}
+                            clearInterval(poll); cleanup(); return resolve(true);
+                        }
+                        elapsed += step;
+                        if (elapsed >= timeoutMs) {
+                            clearInterval(poll);
+                            // fall back: mark ready false but resolve to continue
+                            try { window.__metro_pids_display_popup_ready = false; } catch (e) {}
+                            return resolve(false);
+                        }
+                    } catch (e) {
+                        clearInterval(poll);
+                        // cross-origin; fallback
+                        try { window.__metro_pids_display_popup_ready = false; } catch (ee) {}
+                        return resolve(false);
+                    }
+                }, step);
+            } catch (e) {
+                try { window.__metro_pids_display_popup_ready = false; } catch (ee) {}
+                return resolve(false);
+            }
+        });
+    }
+
+    function stopWithUnlock() {
+        try { stop(); } catch (e) {}
+        uiState.autoLocked = false;
+    }
+
+    // Start recording but first check if a display is connected
+    async function startRecordingWithCheck(bps = 800000, timeoutMs = 1500) {
+        try {
+            const hasBroadcast = !!(pidsState && pidsState.bcWrap && typeof pidsState.bcWrap.post === 'function');
+            // quick check: if no broadcast wrapper, request via postMessage to popup windows
+            let responded = false;
+
+            const onResp = (data) => {
+                if (!data) return;
+                if (data.t === 'SYNC' || data.t === 'REC_STARTED' || data.t === 'REC_ACK') {
+                    responded = true;
+                }
+            };
+
+            // Listen on BroadcastChannel wrapper if available
+            if (hasBroadcast) {
+                try {
+                    pidsState.bcWrap.onMessage((msg) => onResp(msg));
+                } catch (e) {}
+            }
+
+            // Also listen to window messages
+            const winHandler = (ev) => { try { onResp(ev.data); } catch(e){} };
+            if (typeof window !== 'undefined') window.addEventListener('message', winHandler);
+
+            // send REQ to ask display to respond
+            try {
+                if (hasBroadcast) pidsState.bcWrap.post({ t: 'REQ' });
+                else if (typeof window !== 'undefined' && window.postMessage) window.postMessage({ t: 'REQ' }, '*');
+            } catch (e) {}
+
+            // wait for a short timeout
+            await new Promise((res) => setTimeout(res, timeoutMs));
+
+            // cleanup listeners
+            try { if (hasBroadcast) {/* wrapper listener will naturally persist; not removing here for simplicity */} } catch(e){}
+            if (typeof window !== 'undefined') window.removeEventListener('message', winHandler);
+
+            if (!responded) {
+                await showMsg('未检测到已打开的显示端，录制无法启动。请先打开显示端或确认显示端已连接。');
+                return false;
+            }
+
+            // send REC_START
+            try {
+                if (hasBroadcast) pidsState.bcWrap.post({ t: 'REC_START', bps });
+                else if (typeof window !== 'undefined' && window.postMessage) window.postMessage({ t: 'REC_START', bps }, '*');
+            } catch (e) {}
+
+            // update local state if needed
+            try { pidsState.isRec = true; } catch (e) {}
+            await showMsg('已向显示端发送录制开始命令');
+            return true;
+        } catch (e) {
+            console.error('startRecordingWithCheck error', e);
+            await showMsg('启动录制时发生错误：' + String(e));
+            return false;
+        }
+    }
+
+        return {
+            uiState,
+            closePanel,
+            ...autoplay,
+            isPlaying, isPaused, nextIn, start, stop, togglePause,
+            fileIO,
+            pidsState,
+            switchLine, newLine, delLine, saveCfg, clearShortTurn, applyShortTurn,
+            settings, saveSettings, keyMapDisplay, recordKey, clearKey, resetKeys,
+            updateState, checkForUpdateClicked,
+            version,
+            startWithLock, stopWithUnlock, startRecordingWithCheck
+        }
+    },
   template: `
     <div v-if="uiState.activePanel" id="slideOverlay" style="position:fixed; left:0; top:32px; bottom:0; right:0; z-index:180;" @click.self="closePanel">
         <div id="slideBackdrop" style="position:absolute; left:0; top:0; right:0; bottom:0; background:transparent; z-index:170;" @click="closePanel"></div>
     </div>
+
+    <!-- Global auto-play lock overlay (covers entire app) -->
+    <div v-if="uiState.autoLocked" style="position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; flex-direction:column; color:var(--card-foreground, #fff); padding:20px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); transition: backdrop-filter .24s ease, background .24s ease;">
+        <div style="font-size:20px; font-weight:800; margin-bottom:10px;">自动播放进行中 — 整个应用已锁定</div>
+        <div style="font-size:14px; opacity:0.95; margin-bottom:18px; text-align:center; max-width:680px;">为避免干扰演示，请勿操作控制面板或其他窗口内容。若需停止自动播放，请使用下面的按钮。</div>
+        <div style="display:flex; gap:10px;">
+            <button class="btn" style="background:#ff6b6b; color:white; border:none; padding:10px 14px; border-radius:6px; font-weight:bold;" @click="stopWithUnlock()">停止自动播放</button>
+        </div>
+    </div>
     <div id="slidePanel" :style="{ transform: uiState.activePanel ? 'translateX(0)' : 'translateX(-420px)' }" style="position:fixed; left:72px; top:32px; bottom:0; width:420px; z-index:220; background:var(--card); box-shadow: var(--slide-panel-shadow, 6px 0 30px rgba(0,0,0,0.12)); transition: transform 0.32s; overflow:auto;">
+      
       
       <!-- Panel 1: PIDS Console -->
       <div v-if="uiState.activePanel === 'panel-1'" class="panel-body" style="padding:24px 16px;">
@@ -205,7 +494,7 @@ export default {
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
                 <span style="color:var(--text);">自动播放</span>
                 <label style="position:relative; display:inline-block; width:44px; height:24px; margin:0;">
-                    <input type="checkbox" :checked="isPlaying" @change="isPlaying ? stop() : start(8)" style="opacity:0; width:0; height:0;">
+                    <input type="checkbox" :checked="isPlaying" @change="isPlaying ? stopWithUnlock() : startWithLock(8)" style="opacity:0; width:0; height:0;">
                     <span :style="{
                         position:'absolute', cursor:'pointer', top:0, left:0, right:0, bottom:0, 
                         backgroundColor: isPlaying ? 'var(--accent)' : '#ccc', 
@@ -250,14 +539,7 @@ export default {
                 </select>
             </div>
 
-            <div>
-                <label style="display:block; font-size:13px; font-weight:bold; color:var(--muted); margin-bottom:8px;">深色模式变体</label>
-                <select v-model="settings.darkVariant" @change="saveSettings()" style="width:100%; padding:10px; border-radius:6px; border:1px solid var(--divider); background:var(--card); color:var(--text);">
-                    <option value="soft">柔和 (Soft)</option>
-                    <option value="deep">深邃 (Deep)</option>
-                    <option value="oled">纯黑 (OLED)</option>
-                </select>
-            </div>
+            <!-- 深色模式变体 已移除 -->
         </div>
 
         <!-- Keybindings -->
@@ -289,7 +571,23 @@ export default {
             </button>
         </div>
 
+        <!-- Version & Update -->
+        <div class="card" style="border-left: 6px solid #4b7bec; border-radius:12px; padding:16px; margin-bottom:20px; background:var(--bg); box-shadow:0 2px 12px rgba(0,0,0,0.05);">
+            <div style="color:#4b7bec; font-weight:bold; margin-bottom:12px; font-size:15px;">版本与更新</div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <div style="font-size:14px; color:var(--text);">当前版本</div>
+                <div style="font-weight:bold; color:var(--muted);">{{ version }}</div>
+            </div>
+            <div style="display:flex; gap:12px; align-items:center;">
+                <button class="btn" style="flex:0 0 auto; background:#2d98da; color:white; padding:8px 12px; border-radius:6px; border:none;" @click="checkForUpdateClicked()">检查更新</button>
+                <div v-if="updateState.checking" style="font-size:12px; color:var(--muted);">检查中...</div>
+                <div v-if="updateState.downloading" style="font-size:12px; color:var(--muted);">下载中 {{ updateState.progress }}%</div>
+            </div>
+        </div>
+
       </div>
+
+      <!-- Panel 5 removed: third-party display integration hidden -->
 
     </div>
   `
