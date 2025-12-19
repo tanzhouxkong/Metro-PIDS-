@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Display SDK Demo</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; padding: 20px; }
+    .box { margin-bottom: 12px; }
+    button { padding: 8px 12px; }
+    #log { white-space: pre-wrap; background:#f7f7f7; padding:10px; border:1px solid #ddd; height:200px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <h1>Display SDK Demo</h1>
+  <div class="box">
+    <button id="btn-build">Build UMD (run script)</button>
+    <button id="btn-load">Load UMD</button>
+  </div>
+  <div class="box">
+    <button id="btn-sync">Send SYNC (sample)</button>
+    <button id="btn-req">Send REQ</button>
+    <button id="btn-start-rec">Start REC</button>
+    <button id="btn-stop-rec">Stop REC</button>
+  </div>
+  <div class="box">Listening log:</div>
+  <div id="log"></div>
+
+  <script>
+    function log(msg) { const el = document.getElementById('log'); el.innerText += '\n' + msg; el.scrollTop = el.scrollHeight; }
+
+    document.getElementById('btn-load').addEventListener('click', () => {
+      const script = document.createElement('script');
+      script.src = '../dist/display-sdk.umd.js';
+      script.onload = () => { log('UMD loaded, MetroPidsDisplaySdk=' + (window.MetroPidsDisplaySdk ? 'ok' : 'missing')); };
+      script.onerror = () => { log('UMD load failed - ensure you ran npm run build:sdk'); };
+      document.body.appendChild(script);
+    });
+
+    document.getElementById('btn-sync').addEventListener('click', () => {
+      if (!window.MetroPidsDisplaySdk) return log('SDK not loaded');
+      const sdk = window.MetroPidsDisplaySdk.createDisplaySdk();
+      const sample = { meta: { lineName: '18号线', themeColor: '#e74c3c' }, stations: [{ name: '站1', en: 'St1' }, { name: '站2', en: 'St2' }] };
+      sdk.sendSync(sample, { idx: 0, state: 0 });
+      log('Sent SYNC');
+    });
+
+    document.getElementById('btn-req').addEventListener('click', () => {
+      if (!window.MetroPidsDisplaySdk) return log('SDK not loaded');
+      const sdk = window.MetroPidsDisplaySdk.createDisplaySdk();
+      sdk.request();
+      log('Sent REQ');
+    });
+
+    document.getElementById('btn-start-rec').addEventListener('click', () => {
+      if (!window.MetroPidsDisplaySdk) return log('SDK not loaded');
+      const sdk = window.MetroPidsDisplaySdk.createDisplaySdk();
+      sdk.startRec(800000);
+      log('Sent REC_START');
+    });
+    document.getElementById('btn-stop-rec').addEventListener('click', () => {
+      if (!window.MetroPidsDisplaySdk) return log('SDK not loaded');
+      const sdk = window.MetroPidsDisplaySdk.createDisplaySdk();
+      sdk.stopRec();
+      log('Sent REC_STOP');
+    });
+
+    // listen to broadcast/window messages
+    window.addEventListener('message', (ev) => { log('window.message: ' + JSON.stringify(ev.data)); });
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const bc = new BroadcastChannel('metro_pids_v3');
+        bc.addEventListener('message', (ev) => { log('BC msg: ' + JSON.stringify(ev.data)); });
+      } catch (e) { log('BC init err'); }
+    }
+  </script>
+</body>
+</html>

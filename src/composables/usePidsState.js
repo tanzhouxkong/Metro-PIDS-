@@ -1,4 +1,4 @@
-import { reactive } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js'
+import { reactive } from 'vue'
 import { useBroadcast } from './useBroadcast.js'
 import { DEF } from '../utils/defaults.js'
 

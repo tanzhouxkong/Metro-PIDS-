@@ -54,6 +54,44 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('window/maxstate', listener);
   }
   ,
+  // Update APIs
+  checkForUpdates: async () => {
+    try { return await ipcRenderer.invoke('update/check'); } catch (e) { return { ok: false, error: String(e) }; }
+  },
+  downloadUpdate: async () => {
+    try { return await ipcRenderer.invoke('update/download'); } catch (e) { return { ok: false, error: String(e) }; }
+  },
+  installUpdate: async () => {
+    try { return await ipcRenderer.invoke('update/install'); } catch (e) { return { ok: false, error: String(e) }; }
+  },
+  onUpdateAvailable: (cb) => {
+    const l = (e, info) => cb(info);
+    ipcRenderer.on('update/available', l);
+    return () => ipcRenderer.removeListener('update/available', l);
+  },
+  onUpdateNotAvailable: (cb) => {
+    const l = (e, info) => cb(info);
+    ipcRenderer.on('update/not-available', l);
+    return () => ipcRenderer.removeListener('update/not-available', l);
+  },
+  onUpdateError: (cb) => {
+    const l = (e, err) => cb(err);
+    ipcRenderer.on('update/error', l);
+    return () => ipcRenderer.removeListener('update/error', l);
+  },
+  onUpdateProgress: (cb) => {
+    const l = (e, progress) => cb(progress);
+    ipcRenderer.on('update/progress', l);
+    return () => ipcRenderer.removeListener('update/progress', l);
+  },
+  onUpdateDownloaded: (cb) => {
+    const l = (e, info) => cb(info);
+    ipcRenderer.on('update/downloaded', l);
+    return () => ipcRenderer.removeListener('update/downloaded', l);
+  },
+  getAppVersion: async () => {
+    try { return await ipcRenderer.invoke('app/get-version'); } catch (e) { return { ok: false, error: String(e) }; }
+  },
   // allow modal pages to send alert responses back to main
   sendAlertResponse: (data) => {
     try { ipcRenderer.send('electron-alert-response', data); } catch (e) {}

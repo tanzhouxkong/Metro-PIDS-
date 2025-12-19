@@ -2,6 +2,15 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const fsPromises = fs.promises;
+let autoUpdater = null;
+try {
+  // electron-updater is only available after install; require safely
+  // eslint-disable-next-line global-require
+  const updater = require('electron-updater');
+  autoUpdater = updater.autoUpdater;
+} catch (e) {
+  autoUpdater = null;
+}
 
 let mainWin = null;
 let displayWin = null;
@@ -226,6 +235,15 @@ ipcMain.handle('open-external', async (event, url) => {
   }
 });
 
+// Provide app version to renderer
+ipcMain.handle('app/get-version', async () => {
+  try {
+    return { ok: true, version: app.getVersion() };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
   mainWin.on('closed', () => {
     mainWin = null;
   });
@@ -263,6 +281,29 @@ ipcMain.handle('window/close', (event) => {
 
 app.whenReady().then(() => {
   createWindow();
+  // Setup auto-updater if available and running in packaged app
+  if (autoUpdater) {
+    try {
+      autoUpdater.autoDownload = false; // we'll control when to download
+      autoUpdater.on('error', (err) => {
+        try { mainWin && mainWin.webContents.send('update/error', String(err)); } catch (e) {}
+      });
+      autoUpdater.on('update-available', (info) => {
+        try { mainWin && mainWin.webContents.send('update/available', info); } catch (e) {}
+      });
+      autoUpdater.on('update-not-available', (info) => {
+        try { mainWin && mainWin.webContents.send('update/not-available', info); } catch (e) {}
+      });
+      autoUpdater.on('download-progress', (progress) => {
+        try { mainWin && mainWin.webContents.send('update/progress', progress); } catch (e) {}
+      });
+      autoUpdater.on('update-downloaded', (info) => {
+        try { mainWin && mainWin.webContents.send('update/downloaded', info); } catch (e) {}
+      });
+    } catch (e) {
+      console.warn('autoUpdater setup failed', e);
+    }
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -271,6 +312,38 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+// IPC handlers to trigger update actions from renderer
+ipcMain.handle('update/check', async () => {
+  if (!autoUpdater) return { ok: false, error: 'no-updater' };
+  try {
+    await autoUpdater.checkForUpdates();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('update/download', async () => {
+  if (!autoUpdater) return { ok: false, error: 'no-updater' };
+  try {
+    await autoUpdater.downloadUpdate();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('update/install', async () => {
+  if (!autoUpdater) return { ok: false, error: 'no-updater' };
+  try {
+    // quitAndInstall may throw in dev; wrap safely
+    autoUpdater.quitAndInstall();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
 });
 
 function createDisplayWindow(width, height) {

@@ -19,6 +19,7 @@ export default {
             // Fallback to relative path when import.meta is unavailable
         }
         let browserDisplayWindow = null
+        let lastSentDirType = null;
 
         const btnStyle = (panelId) => {
             const isActive = uiState.activePanel === panelId
@@ -79,6 +80,35 @@ export default {
                 t: 'SYNC',
                 d: cloneDisplayState(state.appData),
                 r: cloneDisplayState(state.rt)
+            }
+            // compute effective door for current arrival station only for 'pre' turnback
+            try {
+                const app = payload.d;
+                const rt = payload.r || {};
+                const meta = app && app.meta ? app.meta : null;
+                if (app && Array.isArray(app.stations) && meta) {
+                    const prevDir = lastSentDirType || null;
+                    const currDir = meta.dirType || null;
+                    const upSet = new Set(['up', 'outer']);
+                    const downSet = new Set(['down', 'inner']);
+                    const idx = typeof rt.idx === 'number' ? rt.idx : -1;
+                    if (idx >= 0 && idx < app.stations.length) {
+                        const st = app.stations[idx];
+                        if (st && st.turnback === 'pre' && prevDir && upSet.has(prevDir) && downSet.has(currDir)) {
+                            const invertDoor = (door) => {
+                                if (!door) return 'left';
+                                if (door === 'left') return 'right';
+                                if (door === 'right') return 'left';
+                                return door;
+                            };
+                            st._effectiveDoor = invertDoor(st.door || 'left');
+                        }
+                    }
+                    // update lastSentDirType after building payload so next call can compare
+                    lastSentDirType = meta.dirType || lastSentDirType;
+                }
+            } catch (e) {
+                // ignore any errors building effective door
             }
             persistDisplaySnapshot(payload)
             try {
@@ -195,6 +225,7 @@ export default {
             <i class="fas fa-desktop" style="font-size:20px;"></i>
         </button>
         
+        <!-- third-party display button removed -->
       </div>
 
       <!-- Bottom Section -->
