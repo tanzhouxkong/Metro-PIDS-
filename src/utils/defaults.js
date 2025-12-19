@@ -5,5 +5,9 @@ export const DEFAULT_SETTINGS = {
     themeMode: "system", 
     darkVariant: "soft", 
     keys: { arrdep: "Enter", prev: "ArrowLeft", next: "ArrowRight" }, 
-    autoplay: { enabled: false, intervalSec: 8, key: "Space" } 
+    autoplay: { enabled: false, intervalSec: 8, key: "Space" },
+    display: { 
+        source: 'builtin', /* 'builtin' | 'custom' | 'gitee' */
+        url: '' /* custom display URL if source === 'custom' or Gitee pages raw URL */
+    }
 };

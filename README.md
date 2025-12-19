@@ -93,4 +93,38 @@ npx http-server . -p 8080
 - 统一了直线与环线模式下，从到达站前往目标站的方向箭头动画。
 - 支持站点停靠方向（`双向` / `上行` / `下行`）。
 
+## 显示端 SDK（兼容第三方显示端）
+
+项目提供了一个轻量级的显示端 SDK `src/utils/displaySdk.js`，用于控制和与显示端通信。SDK 优先使用 `BroadcastChannel('metro_pids_v3')`，在不支持时回退到 `window.postMessage`。主要用途包括发送完整的 `SYNC` 数据、控制录制（`REC_START` / `REC_STOP`）以及接收显示端发回的事件。
+
+快速示例：
+
+```javascript
+import { createDisplaySdk } from './src/utils/displaySdk.js';
+
+const sdk = createDisplaySdk();
+
+// 发送最新显示数据（appData: 线路数据，rt: 实时索引/状态）
+sdk.sendSync(appData, rt);
+
+// 发起屏幕录制（比特率可选）
+sdk.startRec(800000);
+
+// 停止录制
+sdk.stopRec();
+
+// 监听显示端或其他控制器的广播消息
+const off = sdk.onMessage((msg) => {
+	console.log('来自显示/控制通道的消息:', msg);
+});
+
+// 请求显示端返回当前状态或恢复快照
+sdk.request();
+
+// 关闭并释放 sdk 资源
+sdk.close();
+```
+
+这使第三方系统（或你的控制端的其他实例）可以更容易地与显示端对接，而不必直接处理 `BroadcastChannel`/`postMessage` 的差异性。
+
 

@@ -1,0 +1,41 @@
+/* Minimal local icon fallback using Unicode/emojis for environments where Font Awesome CDN is blocked.
+   This defines a subset of classes used in the app and maps them to simple content.
+*/
+.fa, .fas, .far, .fab { font-style: normal; font-weight: normal; display: inline-block; }
+.fa::before, .fas::before, .far::before, .fab::before { speak: none; }
+
+.fa-chevron-left::before { content: '◀'; }
+.fa-chevron-right::before { content: '▶'; }
+.fa-sign-in-alt::before { content: '⇦'; }
+.fa-sign-out-alt::before { content: '⇨'; }
+.fa-step-forward::before { content: '⏭'; }
+.fa-plus::before { content: '+'; }
+.fa-bars::before { content: '☰'; }
+.fa-pencil-alt::before { content: '✎'; }
+.fa-times::before { content: '✖'; }
+.fa-sync-alt::before { content: '🔁'; }
+.fa-folder-open::before { content: '📁'; }
+.fa-save::before { content: '💾'; }
+.fa-trash-alt::before { content: '🗑'; }
+.fa-info-circle::before { content: 'ℹ️'; }
+.fa-undo::before { content: '↶'; }
+.fa-desktop::before { content: '🖥'; }
+.fa-cog::before { content: '⚙️'; }
+.fa-sliders-h::before { content: '≡'; }
+.fa-subway::before { content: '🚇'; }
+.fa-dungeon::before { content: '🏰'; }
+.fa-door-open::before { content: '🚪'; }
+.fab.fa-github::before { content: '🐙'; }
+
+/* small helpers for sizing */
+.fa, .fas, .far, .fab { font-size: 14px; line-height: 1; }
+.fa-2x { font-size: 28px; }
+.a1::before { opacity: 0.9; }
+.a2::before { opacity: 0.6; }
+.a3::before { opacity: 0.3; }
+
+/* track-arrow / segment-arrow styles used in displayWindowLogic */
+.track-arrow { font-size: 20px; }
+.segment-arrow { font-size: 20px; }
+.segment-arrow-current { color: var(--theme); }
+.segment-arrow-default { color: #ccc; }

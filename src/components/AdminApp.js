@@ -151,14 +151,14 @@ export default {
         return `${prevName} → ${currentStation.value.name || ''}`
     })
 
-    return {
-      state,
-      next, move, setArr, setDep, jumpTo,
-      showEditor, editingStation, editingIndex, isNewStation,
-      openEditor, saveStation, deleteStation,
-      currentStation, routeInfo, statusDesc,
-    onDragStart, onDragOver, onDrop, onDragEnter, onDragEnd, onDragLeave, draggingIndex, dragOverIndex, listRef
-    }
+        return {
+            state,
+            next, move, setArr, setDep, jumpTo,
+            showEditor, editingStation, editingIndex, isNewStation,
+            openEditor, saveStation, deleteStation,
+            currentStation, routeInfo, statusDesc,
+            onDragStart, onDragOver, onDrop, onDragEnter, onDragEnd, onDragLeave, draggingIndex, dragOverIndex, listRef
+        }
   },
   template: `
     <div id="admin-app-vue" style="flex:1; display:flex; flex-direction:column; height:100%; overflow:hidden; padding:20px; gap:20px; background:var(--bg);">
@@ -168,12 +168,14 @@ export default {
             <div style="display:flex; justify-content:flex-start; align-items:center;">
                 <div style="font-size:12px; color:var(--muted);">{{ routeInfo }}</div>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div style="font-size:28px; font-weight:800; color:var(--text);">{{ currentStation.name }}</div>
-                <div class="badge" :style="{ background: (state.rt.state === 0 ? '#27c93f' : '#ff5f56'), padding: '6px 16px', borderRadius: '16px', fontSize: '14px', color: '#fff', fontWeight: '700', boxShadow: '0 6px 18px rgba(0,0,0,0.12)' }">
-                    {{ state.rt.state === 0 ? '进站' : '出站' }}
-                </div>
-            </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div style="font-size:28px; font-weight:800; color:var(--text);">{{ currentStation.name }}</div>
+                                <div style="display:flex; gap:8px; align-items:center;">
+                                    <div class="badge" :style="{ background: (state.rt.state === 0 ? '#27c93f' : '#ff5f56'), padding: '6px 16px', borderRadius: '16px', fontSize: '14px', color: '#fff', fontWeight: '700', boxShadow: '0 6px 18px rgba(0,0,0,0.12)' }">
+                                        {{ state.rt.state === 0 ? '进站' : '出站' }}
+                                    </div>
+                                </div>
+                        </div>
             <div>
                 <div style="font-size:14px; color:var(--btn-red-bg); font-weight:bold; margin-top:4px;">{{ statusDesc }}</div>
             </div>

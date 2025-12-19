@@ -4,10 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Metro PIDS V2 - Display</title>
-  <link
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    rel="stylesheet"
-  />
+  <script>
+    (function(){
+      var cdn = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = cdn;
+      document.head.appendChild(link);
+      setTimeout(function(){
+        var loaded = false;
+        try { loaded = !!(window.getComputedStyle && window.getComputedStyle(document.body, ':before')); } catch(e) { loaded = false; }
+        if (!loaded) {
+          var l = document.createElement('link');
+          l.rel = 'stylesheet';
+          l.href = 'assets/local-icons.css';
+          document.head.appendChild(l);
+        }
+      }, 2000);
+    })();
+  </script>
   <style>
     html,
     body {
@@ -34,6 +49,7 @@
       }
     }
   </script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2300b894'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='10' fill='%23fff'%3ED%3C/text%3E%3C/svg%3E">
 </head>
 <body>
   <div id="display-root"></div>

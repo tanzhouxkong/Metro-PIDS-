@@ -14,6 +14,12 @@ export function useController() {
             r: cloneDisplayState(state.rt)
         };
         bcPost(payload);
+        // If a popup display window was opened by the controller, postMessage as fallback
+        try {
+            if (typeof window !== 'undefined' && window.__metro_pids_display_popup && !window.__metro_pids_display_popup.closed && window.__metro_pids_display_popup_ready === true) {
+                try { window.__metro_pids_display_popup.postMessage(payload, '*'); } catch (e) {}
+            }
+        } catch (e) {}
     }
 
     function getStep() {

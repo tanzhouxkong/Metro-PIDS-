@@ -1,6 +1,9 @@
-import { ref } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js'
+import { ref } from 'vue'
 
-export function useAutoplay() {
+// useAutoplay accepts an optional `tick` callback which will be invoked
+// on each autoplay step. If not provided, it will fall back to calling
+// `window.next()` when available.
+export function useAutoplay(tick, shouldStop) {
     const isPlaying = ref(false)
     const isPaused = ref(false)
     const nextIn = ref(0)
@@ -26,8 +29,17 @@ export function useAutoplay() {
         timer = setInterval(() => {
             if (!isPaused.value) {
                 try {
-                    if (typeof window.next === 'function') window.next()
+                    if (typeof tick === 'function') tick();
+                    else if (typeof window !== 'undefined' && typeof window.next === 'function') window.next();
                     nextIn.value = _intervalSec
+                    // After performing a tick, check if we should stop (e.g., reached terminal)
+                    try {
+                        if (typeof shouldStop === 'function' && shouldStop()) {
+                            stop();
+                        }
+                    } catch (e2) {
+                        console.error('Autoplay shouldStop error', e2);
+                    }
                 } catch (e) {
                     console.error('Autoplay next error', e)
                 }

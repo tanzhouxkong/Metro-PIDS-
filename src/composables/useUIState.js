@@ -1,9 +1,10 @@
-import { reactive } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js'
+import { reactive } from 'vue'
 
 const uiState = reactive({
     activePanel: null, // 'panel-1', 'panel-2', etc.
     sidebarCollapsed: false,
-    showDisplay: false
+    showDisplay: false,
+    autoLocked: false
 })
 
 export function useUIState() {
