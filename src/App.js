@@ -17,7 +17,7 @@ export default {
     const { settings } = useSettings();
     const kbd = useKeyboard();
 
-    // Keyboard handling
+    // 键盘处理
     kbd.install();
     kbd.onKey((e) => {
         if (pidState.isRec || ['INPUT','TEXTAREA'].includes((e.target && e.target.tagName) || '')) return;
@@ -42,34 +42,32 @@ export default {
         if (match(km.prev)) { move(-getStep()); return; }
         if (match(km.next)) { move(getStep()); return; }
         
-        // Hardcoded fallbacks
+        // 硬编码兜底
         if (code === 'Enter' || key === 'Enter') { e.preventDefault(); next(); }
         if (code === 'ArrowLeft' || key === 'ArrowLeft') move(-getStep());
         if (code === 'ArrowRight' || key === 'ArrowRight') move(getStep());
     });
 
-    // Broadcast handling
+    // 广播处理
     bcOn((data) => {
-      // DEBUG: log CMD_UI messages received via BroadcastChannel
+      // 调试：记录收到的 CMD_UI 消息
       try { if (data && data.t === 'CMD_UI') console.log('[debug][bc] CMD_UI received in App.js', data); } catch(e) {}
-      // Security: do not act on CMD_UI messages delivered via BroadcastChannel.
-      // Display windows may erroneously broadcast these; ignore to prevent
-      // remote-close/minimize/maximize affecting the main control panel.
+      // 安全：忽略通过 BroadcastChannel 传入的 CMD_UI，防止显示端误触主控的窗口操作
       if (data && data.t === 'CMD_UI') {
         try { console.log('[debug][bc] Ignoring CMD_UI from BroadcastChannel', data); } catch(e) {}
         return;
       }
       if (data && data.t === 'REQ') sync();
-      // Remote key commands
+      // 远端按键指令
       if (data && data.t === 'CMD_KEY') {
          const code = data.code || data.key;
          if (code === 'Enter') next();
          if (code === 'ArrowLeft') move(-getStep());
          if (code === 'ArrowRight') move(getStep());
       }
-      // Remote UI commands from display window — IGNORE if message explicitly marked from display
+      // 来自显示端的 UI 命令；若标记 src=display 则忽略
       if (data && data.t === 'CMD_UI') {
-        // If the sender marked the message as originating from the display, do not act on it here.
+        // 标记为 display 来源时不处理
         if (data.src && data.src === 'display') return;
         const cmd = data.cmd;
         if (!cmd) return;
@@ -91,13 +89,13 @@ export default {
       }
     });
 
-    // Fallback: handle postMessage from popup display windows
+    // 兜底：处理显示端弹窗的 postMessage
     const handleWindowMsg = (ev) => {
-      // DEBUG: log postMessage events targeting App
+      // 调试：记录指向 App 的 postMessage
       try { console.log('[debug][postMessage] window.message received in App.js', ev.origin, ev.data); } catch(e) {}
       const data = ev.data;
       if (!data) return;
-      // Security: ignore CMD_UI messages sent via postMessage from other windows
+      // 安全：忽略其他窗口通过 postMessage 发送的 CMD_UI
       if (data.t === 'CMD_UI') {
         try { console.log('[debug][postMessage] Ignoring CMD_UI from postMessage', ev.origin, data); } catch(e) {}
         return;

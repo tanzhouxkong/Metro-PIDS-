@@ -1,6 +1,6 @@
 {
   "name": "metro-pids",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "Metro-PIDS ",
   "author": "",
   "main": "main.js",
@@ -17,7 +17,7 @@
     "publish": [
       {
         "provider": "generic",
-        "url": "https://gitee.com/tanzhouxkong/Metro-PIDS-/raw/pages/releases/"
+        "url": "https://gitee.com/tanzhouxkong/Metro-PIDS-/raw/main/releases/"
       },
       {
         "provider": "github",
@@ -34,15 +34,48 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "publish": [
+        {
+          "provider": "generic",
+          "url": "https://gitee.com/tanzhouxkong/Metro-PIDS-/raw/main/releases/win32/"
+        },
+        {
+          "provider": "github",
+          "owner": "tanzhouxkong",
+          "repo": "Metro-PIDS-"
+        }
+      ]
     },
     "mac": {
       "target": "dmg",
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "publish": [
+        {
+          "provider": "generic",
+          "url": "https://gitee.com/tanzhouxkong/Metro-PIDS-/raw/main/releases/mac/"
+        },
+        {
+          "provider": "github",
+          "owner": "tanzhouxkong",
+          "repo": "Metro-PIDS-"
+        }
+      ]
     },
     "linux": {
       "target": "AppImage",
-      "icon": "build"
+      "icon": "build/icon.png",
+      "publish": [
+        {
+          "provider": "generic",
+          "url": "https://gitee.com/tanzhouxkong/Metro-PIDS-/raw/main/releases/linux/"
+        },
+        {
+          "provider": "github",
+          "owner": "tanzhouxkong",
+          "repo": "Metro-PIDS-"
+        }
+      ]
     }
   },
   "devDependencies": {

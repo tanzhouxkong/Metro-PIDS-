@@ -24,7 +24,7 @@ export default {
         draggingIndex.value = index
         e.dataTransfer.effectAllowed = 'move'
         e.dataTransfer.dropEffect = 'move'
-        // Fix for Firefox
+        // Firefox 兼容处理
         e.dataTransfer.setData('text/plain', index)
     }
 
@@ -68,13 +68,13 @@ export default {
         if (from === -1 || from === to) return
         
         const stations = state.appData.stations
-        const currentStation = stations[state.rt.idx] // Track current active station object
+        const currentStation = stations[state.rt.idx] // 记录当前站对象
         
-        // Move item
+        // 移动元素
         const item = stations.splice(from, 1)[0]
         stations.splice(to, 0, item)
         
-        // Restore current index based on where the active station moved to
+        // 根据活动站的新位置恢复索引
         const newIdx = stations.indexOf(currentStation)
         if (newIdx !== -1) state.rt.idx = newIdx
         
@@ -83,12 +83,12 @@ export default {
 
     function openEditor(index) {
         if (index === -1) {
-            // New station
-            editingStation.value = { name: '', en: '', skip: false, door: 'left', dock: 'both', xfer: [] }
+            // 新增站点
+            editingStation.value = { name: '', en: '', skip: false, door: 'left', dock: 'both', xfer: [], expressStop: false }
             editingIndex.value = -1
             isNewStation.value = true
         } else {
-            // Edit existing
+            // 编辑已有站点
             editingStation.value = JSON.parse(JSON.stringify(state.appData.stations[index]))
             editingIndex.value = index
             isNewStation.value = false
@@ -107,7 +107,7 @@ export default {
         try {
             console.log('[AdminApp] saveStation - calling sync with', data);
             sync()
-            // Persist to disk when possible (Electron environment)
+            // 若在 Electron 环境则尝试落盘
             try {
                 await fileIO.saveCurrentLine()
             } catch (e) {
@@ -131,7 +131,7 @@ export default {
         }
     }
 
-    // Computed for Header Info
+    // 头部信息的计算属性
     const currentStation = computed(() => {
         if (!state.appData || !state.appData.stations) return {}
         return state.appData.stations[state.rt.idx] || {}
@@ -151,12 +151,19 @@ export default {
         return `${prevName} → ${currentStation.value.name || ''}`
     })
 
+    const serviceModeLabel = computed(() => {
+        const mode = (state.appData.meta && state.appData.meta.serviceMode) ? state.appData.meta.serviceMode : 'normal';
+        if (mode === 'express') return '大站车';
+        if (mode === 'direct') return '直达';
+        return '普通';
+    })
+
         return {
             state,
             next, move, setArr, setDep, jumpTo,
             showEditor, editingStation, editingIndex, isNewStation,
             openEditor, saveStation, deleteStation,
-            currentStation, routeInfo, statusDesc,
+            currentStation, routeInfo, statusDesc, serviceModeLabel,
             onDragStart, onDragOver, onDrop, onDragEnter, onDragEnd, onDragLeave, draggingIndex, dragOverIndex, listRef
         }
   },
@@ -168,16 +175,28 @@ export default {
             <div style="display:flex; justify-content:flex-start; align-items:center;">
                 <div style="font-size:12px; color:var(--muted);">{{ routeInfo }}</div>
             </div>
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <div style="font-size:28px; font-weight:800; color:var(--text);">{{ currentStation.name }}</div>
-                                <div style="display:flex; gap:8px; align-items:center;">
-                                    <div class="badge" :style="{ background: (state.rt.state === 0 ? '#27c93f' : '#ff5f56'), padding: '6px 16px', borderRadius: '16px', fontSize: '14px', color: '#fff', fontWeight: '700', boxShadow: '0 6px 18px rgba(0,0,0,0.12)' }">
-                                        {{ state.rt.state === 0 ? '进站' : '出站' }}
-                                    </div>
-                                </div>
-                        </div>
-            <div>
-                <div style="font-size:14px; color:var(--btn-red-bg); font-weight:bold; margin-top:4px;">{{ statusDesc }}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-size:28px; font-weight:800; color:var(--text);">{{ currentStation.name }}</div>
+                <div class="badge" :style="{ background: (state.rt.state === 0 ? '#27c93f' : '#ff5f56'), padding: '6px 16px', borderRadius: '16px', fontSize: '14px', color: '#fff', fontWeight: '700', boxShadow: '0 6px 18px rgba(0,0,0,0.12)' }">
+                    {{ state.rt.state === 0 ? '进站' : '出站' }}
+                </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                <div style="font-size:14px; color:var(--btn-red-bg); font-weight:bold;">{{ statusDesc }}</div>
+                <div style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; background:var(--card); border:1px solid var(--divider); border-radius:8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                    <span style="font-size:11px; color:var(--muted); font-weight:500;">运营模式</span>
+                    <span :style="{
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        color: '#fff',
+                        fontWeight: 'bold',
+                        background: serviceModeLabel === '大站车' ? '#ffa502' : (serviceModeLabel === '直达' ? '#ff4757' : 'var(--btn-blue-bg)'),
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }">
+                        {{ serviceModeLabel }}
+                    </span>
+                </div>
             </div>
         </div>
 
@@ -237,6 +256,7 @@ export default {
                             <div style="margin-top:6px; display:flex; gap:6px; align-items:center;">
                                 <span v-if="st.dock && st.dock === 'up'" class="badge" style="background:#3498db; color:#fff; font-size:10px; padding:2px 6px; border-radius:3px;">仅上行</span>
                                 <span v-if="st.dock && st.dock === 'down'" class="badge" style="background:#2ecc71; color:#fff; font-size:10px; padding:2px 6px; border-radius:3px;">仅下行</span>
+                                <span v-if="st.expressStop !== false" class="badge" style="background:#ffa502; color:#fff; font-size:10px; padding:2px 6px; border-radius:3px;">大站停靠</span>
                                 <!-- 不显示 '两向' 标签于控制面板 -->
                             </div>
                         </div>

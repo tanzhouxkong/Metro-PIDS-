@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 
 const uiState = reactive({
-    activePanel: null, // 'panel-1', 'panel-2', etc.
+    activePanel: null, // 当前激活面板标识（如 'panel-1', 'panel-2'）
     sidebarCollapsed: false,
     showDisplay: false,
     autoLocked: false

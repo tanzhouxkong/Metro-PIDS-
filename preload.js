@@ -54,7 +54,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('window/maxstate', listener);
   }
   ,
-  // Update APIs
+  // 更新相关 API
   checkForUpdates: async () => {
     try { return await ipcRenderer.invoke('update/check'); } catch (e) { return { ok: false, error: String(e) }; }
   },
@@ -63,6 +63,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   installUpdate: async () => {
     try { return await ipcRenderer.invoke('update/install'); } catch (e) { return { ok: false, error: String(e) }; }
+  },
+  skipVersion: async (version) => {
+    try { return await ipcRenderer.invoke('update/skip-version', version); } catch (e) { return { ok: false, error: String(e) }; }
   },
   onUpdateAvailable: (cb) => {
     const l = (e, info) => cb(info);
@@ -92,7 +95,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: async () => {
     try { return await ipcRenderer.invoke('app/get-version'); } catch (e) { return { ok: false, error: String(e) }; }
   },
-  // allow modal pages to send alert responses back to main
+  // 允许模态页将 alert 结果回传主进程
   sendAlertResponse: (data) => {
     try { ipcRenderer.send('electron-alert-response', data); } catch (e) {}
   }

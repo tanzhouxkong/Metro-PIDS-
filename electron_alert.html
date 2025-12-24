@@ -71,7 +71,7 @@
       btnCancel.addEventListener('click', ()=> respond(false));
       btnClose.addEventListener('click', ()=> respond(false));
 
-      // allow Enter/Esc
+      // 允许 Enter/Esc 快捷触发
       window.addEventListener('keydown', (ev)=>{
         if(ev.key === 'Enter') respond(true);
         if(ev.key === 'Escape') respond(false);

@@ -1,3 +1,20 @@
+// 判断站点是否因运营模式被跳过
+function isSkippedByService(st, idx, len, meta) {
+  if (!st) return true;
+  if (st.skip) return true;
+  const mode = (meta && meta.serviceMode) || 'normal';
+  const expressKeep = st.expressStop !== undefined ? !!st.expressStop : false; // 默认不保留停靠，需要明确设置
+  const isEnd = idx === 0 || idx === len - 1;
+  if (mode === 'direct') {
+    return !isEnd;
+  }
+  if (mode === 'express') {
+    if (isEnd) return false;
+    // 大站车模式下：只有明确设置 expressStop 为 true 的站点才停靠
+    return !expressKeep;
+  }
+  return false;
+}
 const SCALER_W = 1900;
 const SCALER_H = 600;
 const DISPLAY_SNAPSHOT_KEY = 'metro_pids_display_snapshot';
@@ -814,19 +831,18 @@ function getNextValidSt(currentIdx, step, appData) {
     }
     const candidate = stations[nextIdx];
     if (!candidate) continue;
-    // Respect dock restriction: if candidate has dock set to 'up' or 'down',
-    // it only allows docking when direction matches. If 'both' or missing, allow.
+    // 遵守站台 dock 限制：仅方向匹配才允许上下客；缺省或 both 则放行
     const dirType = appData && appData.meta ? appData.meta.dirType : null;
     if (candidate.dock && candidate.dock !== 'both') {
       if (candidate.dock === 'up' && !(dirType === 'up' || dirType === 'outer')) {
-        // not allowed in this direction
+        // 方向不符，跳过
         continue;
       }
       if (candidate.dock === 'down' && !(dirType === 'down' || dirType === 'inner')) {
         continue;
       }
     }
-    if (!candidate.skip) return nextIdx;
+    if (!isSkippedByService(candidate, nextIdx, len, appData.meta)) return nextIdx;
     if (meta.mode !== 'loop') {
       if (nextIdx === minIdx || nextIdx === maxIdx) return nextIdx;
     }
@@ -876,20 +892,49 @@ function mkNode(st, i, mode, appData, rtState) {
   let nameStyle = '';
   let deferTag = '';
   let dockTag = '';
-  if (st.skip) {
+  let expressStopTag = '';
+  let dotStyle = '';
+  const limitedDock = st.dock && st.dock !== 'both';
+  const isDirMatch =
+    (st.dock === 'up' && (dir === 'up' || dir === 'outer')) ||
+    (st.dock === 'down' && (dir === 'down' || dir === 'inner')) ||
+    (!st.dock || st.dock === 'both');
+  const skipByMode = isSkippedByService(st, i, (appData.stations || []).length, appData.meta);
+  const serviceMode = (appData.meta && appData.meta.serviceMode) ? appData.meta.serviceMode : 'normal';
+  // 站点本身被标记为暂缓（st.skip）时，无论什么模式都显示"暂缓"标签
+  // 因运营模式被跳过（skipByMode）时，只有普通模式才显示"暂缓"标签
+  const shouldShowDeferTag = !shortTurnEnabled && (st.skip || (skipByMode && serviceMode === 'normal'));
+  if (st.skip || skipByMode) {
     nameStyle = 'color:#999; opacity:0.7;';
-    if (!shortTurnEnabled) deferTag = '<div class="defer">暂缓</div>';
+    // 站点本身被标记为暂缓时，无论什么模式都显示暂缓标签
+    if (st.skip) {
+      deferTag = '<div class="defer">暂缓</div>';
+    } else if (shouldShowDeferTag) {
+      deferTag = '<div class="defer">暂缓</div>';
+    }
   }
-  if (st.dock && st.dock !== 'both') {
+  if (limitedDock) {
     const txt = st.dock === 'up' ? '仅上行' : (st.dock === 'down' ? '仅下行' : '');
-    if (txt) dockTag = `<div style="margin-top:4px;"><span class=\"x-tag\" style=\"background:#444; padding:4px 6px; font-size:12px; border-radius:3px;\">${txt}</span></div>`;
+    if (!isDirMatch) {
+      if (!nameStyle) nameStyle = 'color:#999; opacity:0.7;';
+      // 圆点保持与暂缓站一致的默认样式，仅文字压暗
+    }
+    if (txt) dockTag = `<div style="margin-top:4px;"><span class=\"x-tag\" style="background:${isDirMatch ? '#1e90ff' : '#444'}; padding:4px 6px; font-size:12px; border-radius:3px; color:${isDirMatch ? '#fff' : '#fff'};">${txt}</span></div>`;
   }
+  // 大站停靠标签：常驻显示，只要站点设置了expressStop就显示
+  if (st.expressStop !== false) {
+    expressStopTag = `<div style="margin-top:4px;"><span class="x-tag" style="background:#ffa502; padding:4px 6px; font-size:12px; border-radius:3px; color:#fff;">大站停靠</span></div>`;
+  }
+  
+  // 计算标签数量：换乘站、暂缓、进上下行停靠、大站停靠
   if (mode === 'loop') {
-    node.innerHTML = `<div class="dot"></div><div class="n-txt"><div style="${nameStyle}">${st.name}</div><div class="en">${st.en}</div>${deferTag}${dockTag}<div class="x-box">${xferHTML}</div></div>`;
+    node.innerHTML = `<div class="dot"${dotStyle}></div><div class="n-txt"><div style="${nameStyle}">${st.name}</div><div class="en">${st.en}</div>${deferTag}${dockTag}${expressStopTag}<div class="x-box">${xferHTML}</div></div>`;
   } else {
+    // 线性模式：直接显示所有标签
+    const tagsContent = `${dockTag}${expressStopTag}${deferTag}${xferHTML}`;
     node.innerHTML = `
-      <div class="info-top">${dockTag}${deferTag}${xferHTML}</div>
-      <div class="dot"></div>
+      <div class="info-top">${tagsContent}</div>
+      <div class="dot"${dotStyle}></div>
       <div class="info-btm">
         <div class="name" style="${nameStyle}">${st.name}</div>
         <div class="en">${st.en}</div>
@@ -946,7 +991,7 @@ export function initDisplayWindow(rootElement) {
         bc.postMessage({ t: 'CMD_KEY', code: e.code, key: e.key, normCode, normKey });
       }
     } catch (err) {
-      // ignore
+      // 忽略异常
     }
   };
 
@@ -1098,8 +1143,7 @@ export function initDisplayWindow(rootElement) {
           <i class="fas fa-chevron-right a3" style="animation-delay:0.5s;"></i>
         `;
       } else {
-        // For left-pointing arrows we want the animation to progress right->left,
-        // so reverse the delays: rightmost (a3) animates first.
+        // 左向箭头需动画从右到左，故将延时反转（a3 最先）
         arrowHTML = `
           <i class="fas fa-chevron-left a1" style="animation-delay:0.5s;"></i>
           <i class="fas fa-chevron-left a2" style="animation-delay:0.25s;"></i>
@@ -1216,16 +1260,15 @@ export function initDisplayWindow(rootElement) {
     }
     if (lArrow) lArrow.classList.remove('active');
     if (rArrow) rArrow.classList.remove('active');
-    // determine effective door side, considering station-level "turnback" setting
+    // 根据车站 turnback 设置计算有效开门侧
     const invertDoor = (door) => {
       if (!door) return 'left';
       if (door === 'left') return 'right';
       if (door === 'right') return 'left';
-      return door; // 'both' or others
+      return door; // “双侧”或其他保持原样
     };
 
-    // prefer an explicit effective door stored in payload (e.g. _effectiveDoor),
-    // otherwise fall back to configured door and dynamic turnback calculation
+    // 优先使用 payload 中的显式有效车门(如 _effectiveDoor)，否则用配置并结合折返动态判断
     let effectiveDoor = (st._effectiveDoor) ? st._effectiveDoor : (st.door || 'left');
     if (!st._effectiveDoor) {
       try {
@@ -1236,7 +1279,7 @@ export function initDisplayWindow(rootElement) {
           effectiveDoor = invertDoor(effectiveDoor);
         }
       } catch (e) {
-        // ignore and use configured door
+        // 忽略异常，继续使用配置值
       }
     }
 
@@ -1256,7 +1299,7 @@ export function initDisplayWindow(rootElement) {
       if (doorEn) doorEn.innerText = 'Doors will be opened on this side';
       if (lArrow) lArrow.classList.add('active');
     }
-    // Docking note
+    // 上下行提示
     if (st.dock && st.dock !== 'both') {
       if (st.dock === 'up') {
         if (doorCn) doorCn.innerText += '\n(仅上行停靠)';
@@ -1682,7 +1725,7 @@ export function initDisplayWindow(rootElement) {
         dot.style.boxShadow = 'none';
         if (label) label.style.color = '#999';
       }
-      //环线代码
+      // 环线绘制
       wrapper.appendChild(node);
       const nextI = (i + 1) % sts.length;
       let d1 = dist;
@@ -1698,10 +1741,10 @@ export function initDisplayWindow(rootElement) {
         let angle = Math.atan2(pB.y - pA.y, pB.x - pA.x) * 180 / Math.PI;
         if (m.dirType === 'inner') angle += 180;
         const arrow = document.createElement('div');
-        // If this segment is the current moving segment, give the three arrows staggered animation classes/delays
+        // 若当前段为运行段，为三枚箭头添加错峰动画
         if (isCurrentSeg) {
           let cls, delay;
-          // For inner loops we want the stagger reversed so animation flows the other way
+          // 内环需反转错峰方向，让动画朝反向流动
           if (m.dirType === 'inner' || m.dirType === 'down') {
             cls = ridx === 0 ? 'a3' : (ridx === 1 ? 'a2' : 'a1');
             delay = ridx === 0 ? '0.5s' : (ridx === 1 ? '0.25s' : '0s');
@@ -1859,7 +1902,7 @@ export function initDisplayWindow(rootElement) {
   document.addEventListener('keydown', handleKeyDown);
   renderDisp();
 
-  // Debug helper: call from browser console to render a ring with sample stations
+  // 调试辅助：在浏览器控制台调用可绘制示例环线
   if (typeof window !== 'undefined') {
     window.debugRenderRing = function(count = 18, idx = 2, dir = 'outer') {
       try {
@@ -1868,7 +1911,7 @@ export function initDisplayWindow(rootElement) {
         const m = { dirType: dir, themeColor: getComputedStyle(root).getPropertyValue('--theme') || '#00b894', mode: 'loop' };
         const sts = [];
         for (let i = 0; i < count; i++) sts.push({ name: `站 ${i+1}`, en: `St ${i+1}` });
-        // ensure drawRing is available in this scope
+        // 确保 drawRing 在此作用域可用
         if (typeof drawRing === 'function') drawRing(c, sts, m);
         else console.warn('drawRing() not available');
       } catch (err) { console.warn('debugRenderRing failed', err); }

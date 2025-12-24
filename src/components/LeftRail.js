@@ -1,5 +1,6 @@
 import { useUIState } from '../composables/useUIState.js'
 import { usePidsState } from '../composables/usePidsState.js'
+import { useSettings } from '../composables/useSettings.js'
 import { cloneDisplayState } from '../utils/displayStateSerializer.js'
 
 export default {
@@ -7,16 +8,20 @@ export default {
     setup() {
         const { uiState, togglePanel } = useUIState()
         const { state } = usePidsState()
+        const { settings } = useSettings()
         const DISPLAY_SNAPSHOT_KEY = 'metro_pids_display_snapshot'
-        const W = 1900;
-        const H = 600;
+        const getDisplaySize = () => {
+            const w = settings && settings.display && settings.display.width ? Number(settings.display.width) : 1900;
+            const h = settings && settings.display && settings.display.height ? Number(settings.display.height) : 600;
+            return { w: Math.max(100, w), h: Math.max(100, h) };
+        };
         const hasNativeDisplay =
             typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.openDisplay === 'function'
         let displayWindowUrl = 'display_window.html'
         try {
             displayWindowUrl = new URL('../../display_window.html', import.meta.url).href
         } catch (error) {
-            // Fallback to relative path when import.meta is unavailable
+            // import.meta 不可用时回退到相对路径
         }
         let browserDisplayWindow = null
         let lastSentDirType = null;
@@ -81,7 +86,7 @@ export default {
                 d: cloneDisplayState(state.appData),
                 r: cloneDisplayState(state.rt)
             }
-            // compute effective door for current arrival station only for 'pre' turnback
+            // 仅在折返类型为 pre 时，为当前到站计算有效车门
             try {
                 const app = payload.d;
                 const rt = payload.r || {};
@@ -104,11 +109,11 @@ export default {
                             st._effectiveDoor = invertDoor(st.door || 'left');
                         }
                     }
-                    // update lastSentDirType after building payload so next call can compare
+                    // 构建 payload 后再更新 lastSentDirType 以便下次比较
                     lastSentDirType = meta.dirType || lastSentDirType;
                 }
             } catch (e) {
-                // ignore any errors building effective door
+                // 构建有效车门失败可忽略
             }
             persistDisplaySnapshot(payload)
             try {
@@ -124,7 +129,8 @@ export default {
                 sendStateToDisplay(browserDisplayWindow)
                 return browserDisplayWindow
             }
-            const displayFeatures = 'width=1900,height=600,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no';
+            const { w, h } = getDisplaySize();
+            const displayFeatures = `width=${w},height=${h},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no`;
             const win = window.open(displayWindowUrl, 'metro-pids-display', displayFeatures)
             if (win) {
                 win.addEventListener('beforeunload', () => {
@@ -132,11 +138,10 @@ export default {
                     browserDisplayWindow = null
                 }, { once: true })
                 sendStateToDisplay(win)
-                // Inform popup that it was opened by this controller (helps popup avoid
-                // attempting to call window.close() when not allowed)
+                // 告知弹窗由控制端打开（避免在不允许时调用 window.close）
                 try { win.postMessage({ t: 'METRO_PIDS_OPENED_BY', src: 'controller' }, '*'); } catch (e) {}
                 win.addEventListener('load', () => sendStateToDisplay(win), { once: true })
-                    // Listen for requests from the popup to close itself
+                    // 监听弹窗请求自闭
                     const popupCloseHandler = (ev) => {
                         try {
                             const data = ev && ev.data;
@@ -147,7 +152,7 @@ export default {
                         } catch (err) {}
                     };
                     window.addEventListener('message', popupCloseHandler);
-                    // Remember to remove handler when the window unloads
+                    // 弹窗卸载时移除监听
                     win.addEventListener('beforeunload', () => {
                         try { window.removeEventListener('message', popupCloseHandler); } catch(e) {}
                     }, { once: true })
@@ -158,7 +163,12 @@ export default {
 
         const handleDisplayAction = () => {
             if (hasNativeDisplay) {
-                try { window.electronAPI.openDisplay(W, H); } catch (e) { try { window.electronAPI.openDisplay(); } catch (e) {} }
+                try {
+                    const { w, h } = getDisplaySize();
+                    window.electronAPI.openDisplay(w, h);
+                } catch (e) {
+                    try { window.electronAPI.openDisplay(); } catch (e) {}
+                }
                 return
             }
 
@@ -179,7 +189,7 @@ export default {
                 if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.openExternal === 'function') {
                     try {
                         const res = await window.electronAPI.openExternal(url);
-                        // if electron cannot open externally, fall back to window.open
+                        // 若 Electron 无法外链打开，则回退到 window.open
                         if (!res || (res.ok === false)) {
                             try { window.open(url, '_blank', 'noopener,noreferrer'); } catch(e) { console.warn('Failed to open external URL', e); }
                         }

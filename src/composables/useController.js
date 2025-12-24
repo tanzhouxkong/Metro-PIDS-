@@ -14,7 +14,7 @@ export function useController() {
             r: cloneDisplayState(state.rt)
         };
         bcPost(payload);
-        // If a popup display window was opened by the controller, postMessage as fallback
+        // 若控制端曾打开展示弹窗，作为后备通过 postMessage 同步
         try {
             if (typeof window !== 'undefined' && window.__metro_pids_display_popup && !window.__metro_pids_display_popup.closed && window.__metro_pids_display_popup_ready === true) {
                 try { window.__metro_pids_display_popup.postMessage(payload, '*'); } catch (e) {}
@@ -30,6 +30,23 @@ export function useController() {
         return 1;
     }
 
+    function isSkippedByService(st, idx, len, meta) {
+        if (!st) return true;
+        if (st.skip) return true;
+        const mode = (meta && meta.serviceMode) || 'normal';
+        const expressKeep = st.expressStop !== undefined ? !!st.expressStop : false; // 默认不保留停靠，需要明确设置
+        const isEnd = idx === 0 || idx === len - 1;
+        if (mode === 'direct') {
+            return !isEnd;
+        }
+        if (mode === 'express') {
+            if (isEnd) return false;
+            // 大站车模式下：只有明确设置 expressStop 为 true 的站点才停靠
+            return !expressKeep;
+        }
+        return false;
+    }
+
     function getNextValidStControl(currentIdx, step) {
         if (!state.appData) return currentIdx;
         const stations = state.appData.stations || [];
@@ -37,7 +54,7 @@ export function useController() {
         const dir = step > 0 ? 1 : -1;
         let nextIdx = currentIdx;
 
-        // Determine Range (short-turn)
+        // 计算短交路可运行区间
         const sIdx = (state.appData.meta.startIdx !== undefined && state.appData.meta.startIdx !== -1) ? parseInt(state.appData.meta.startIdx) : 0;
         const eIdx = (state.appData.meta.termIdx !== undefined && state.appData.meta.termIdx !== -1) ? parseInt(state.appData.meta.termIdx) : len - 1;
         const minIdx = Math.min(sIdx, eIdx);
@@ -54,21 +71,20 @@ export function useController() {
                 if (nextIdx < minIdx) return minIdx;
             }
 
-            // Respect dock restriction: if station has dock set to 'up' or 'down',
-            // only allow landing when direction matches. Treat missing or 'both' as allowed.
+            // 遵守站台上下行限制：仅允许方向匹配的站点（缺省或 both 视为允许）
             const candidate = stations[nextIdx];
             const dirType = state.appData && state.appData.meta ? state.appData.meta.dirType : null;
             if (candidate) {
                 if (candidate.dock && candidate.dock !== 'both') {
                     if (candidate.dock === 'up' && !(dirType === 'up' || dirType === 'outer')) {
-                        // skip this candidate for current direction
+                        // 方向不符，跳过该候选
                     } else if (candidate.dock === 'down' && !(dirType === 'down' || dirType === 'inner')) {
-                        // skip this candidate for current direction
-                    } else if (!candidate.skip) {
+                        // 方向不符，跳过该候选
+                    } else if (!isSkippedByService(candidate, nextIdx, len, state.appData.meta)) {
                         return nextIdx;
                     }
                 } else {
-                    if (!candidate.skip) return nextIdx;
+                    if (!isSkippedByService(candidate, nextIdx, len, state.appData.meta)) return nextIdx;
                 }
             }
 

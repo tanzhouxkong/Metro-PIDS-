@@ -10,9 +10,16 @@ export function useSettings() {
             const s = JSON.parse(localStorage.getItem('pids_settings_v1') || 'null');
             if (s) {
                 Object.assign(settings, s);
-                // Ensure nested objects are merged correctly if missing in saved data
+                // 确保嵌套对象在缺失时正确合并
                 if (!settings.keys) settings.keys = { ...DEFAULT_SETTINGS.keys };
                 if (!settings.autoplay) settings.autoplay = { ...DEFAULT_SETTINGS.autoplay };
+                if (!settings.display) settings.display = { ...DEFAULT_SETTINGS.display };
+                if (settings.display && (settings.display.width === undefined || settings.display.height === undefined)) {
+                    settings.display.width = settings.display.width || DEFAULT_SETTINGS.display.width;
+                    settings.display.height = settings.display.height || DEFAULT_SETTINGS.display.height;
+                }
+                // 兼容旧数据，补 serviceMode
+                if (settings.meta && settings.meta.serviceMode === undefined) settings.meta.serviceMode = 'normal';
             }
         } catch (e) { 
             console.warn('Failed to load settings', e);
@@ -37,14 +44,14 @@ export function useSettings() {
             document.documentElement.setAttribute('data-dark-variant', v || 'soft'); 
         }
 
-        // Remove previous listener if exists (not implemented here for simplicity, assuming single instance)
+        // 若有旧监听应移除（此处简化，假设单实例）
         
         if (mode === 'system') {
             if (window.matchMedia) {
                 const mql = window.matchMedia('(prefers-color-scheme: dark)');
                 setDark(mql.matches);
                 setDarkVariant(darkVariant);
-                // Note: Dynamic system theme change listener is not re-attached here to avoid complexity
+                // 注意：为简化未重新绑定系统主题变更监听
             } else {
                 setDark(false);
             }
@@ -56,7 +63,7 @@ export function useSettings() {
         }
     }
 
-    // Initial load
+    // 初始化加载
     loadSettings();
 
     return {

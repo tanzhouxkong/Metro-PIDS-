@@ -1,4 +1,70 @@
-export const DEF = {"meta":{"lineName":"2号线","themeColor":"#00ff4c","mode":"linear","dirType":"up"},"stations":[{"name":"浦东1号2号航站楼","en":"Pudong Airport Terminal 1 & 2","xfer":[{"line":"磁浮线","color":"#808080"},{"line":"机场联络线","color":"#808080"}],"dock":"both"},{"name":"海天三路","en":"Haitian Sanlu","xfer":[],"dock":"both"},{"name":"远东大道","en":"Yuandong Dadao","xfer":[],"dock":"both"},{"name":"凌空路","en":"Lingkong Lu","xfer":[],"dock":"both"},{"name":"川沙","en":"Chuansha","xfer":[],"dock":"both"},{"name":"华夏东路","en":"Huaxia Donglu","xfer":[],"dock":"both"},{"name":"创新中路","en":"Chuangxin Zhonglu","xfer":[],"dock":"both"},{"name":"唐镇","en":"Tangzhen","xfer":[],"dock":"both"},{"name":"广兰路","en":"Guanglan Lu","xfer":[],"dock":"both"},{"name":"金科路","en":"Jinke Lu","xfer":[],"dock":"both"},{"name":"张江高科","en":"Zhangjiang Hi-Tech Park","xfer":[],"dock":"both"},{"name":"龙阳路","en":"Longyang Lu","xfer":[{"line":"7号线","color":"#FF6900"},{"line":"16号线","color":"#99CC66"},{"line":"18号线","color":"#D7000F"},{"line":"磁浮线","color":"#808080"}],"dock":"both"},{"name":"世纪公园","en":"Century Park","xfer":[],"dock":"both"},{"name":"上海科技馆","en":"Shanghai Science & Technology Museum","xfer":[],"dock":"both"},{"name":"世纪大道","en":"Century Avenue","xfer":[{"line":"4号线","color":"#52c41a"},{"line":"6号线","color":"#D9027D"},{"line":"9号线","color":"#71C5E8"}],"dock":"both"},{"name":"浦东南路","en":"Pudong Nanlu","xfer":[{"line":"14号线","color":"#8A2BE2"},{"line":"19号线","color":"#808080"}],"dock":"both"},{"name":"陆家嘴","en":"Lujiazui","xfer":[{"line":"14号线","color":"#8A2BE2"}],"dock":"both"},{"name":"南京东路","en":"East Nanjing Road","xfer":[{"line":"10号线","color":"#C0A8D1"}],"dock":"both"},{"name":"人民广场","en":"People's Square","xfer":[{"line":"1号线","color":"#ED3229"},{"line":"8号线","color":"#0099CC"}],"dock":"both"},{"name":"南京西路","en":"West Nanjing Road","xfer":[{"line":"12号线","color":"#007B65"},{"line":"13号线","color":"#F19D00"}],"dock":"both"},{"name":"静安寺","en":"Jing'an Temple","xfer":[{"line":"7号线","color":"#FF6900"},{"line":"14号线","color":"#8A2BE2"}],"dock":"both"},{"name":"江苏路","en":"Jiangsu Road","xfer":[{"line":"11号线","color":"#882E91"}],"dock":"both"},{"name":"中山公园","en":"Zhongshan Park","xfer":[{"line":"3号线","color":"#FFD700"},{"line":"4号线","color":"#52c41a"}],"dock":"both"},{"name":"娄山关路","en":"Loushanguan Lu","xfer":[{"line":"15号线","color":"#BBA786"}],"dock":"both"},{"name":"威宁路","en":"Weining Lu","xfer":[],"dock":"both"},{"name":"北新泾","en":"Beixinjing","xfer":[],"dock":"both"},{"name":"淞虹路","en":"Songhong Lu","xfer":[],"dock":"both"},{"name":"虹桥2号航站楼","en":"Hongqiao Airport Terminal 2","xfer":[{"line":"10号线","color":"#C0A8D1"},{"line":"机场联络线","color":"#808080"}],"dock":"both"},{"name":"虹桥火车站","en":"Hongqiao Railway Station","xfer":[{"line":"10号线","color":"#C0A8D1"},{"line":"17号线","color":"#B5BD00"}],"dock":"both"},{"name":"国家会展中心","en":"National Exhibition and Convention Center","xfer":[{"line":"13号线","color":"#F19D00"},{"line":"17号线","color":"#B5BD00"}],"dock":"both"},{"name":"蟠祥路•国家会计学院站","en":"Panxiang Road·Shanghai National Accounting Institute Station","xfer":[],"dock":"both"}]};
+export const DEF = {
+  "meta": {
+    "lineName": "2号线",
+    "themeColor": "#00ff4c",
+    "mode": "linear",
+    "dirType": "up",
+    "serviceMode": "normal"
+  },
+  "stations": [
+    {"name": "浦东1号2号航站楼", "en": "Pudong Airport Terminal 1 & 2", "xfer": [{"line": "磁浮线", "color": "#808080"}, {"line": "机场联络线", "color": "#808080"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "海天三路", "en": "Haitian Sanlu", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "远东大道", "en": "Yuandong Dadao", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "凌空路", "en": "Lingkong Lu", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "川沙", "en": "Chuansha", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "华夏东路", "en": "Huaxia Donglu", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "创新中路", "en": "Chuangxin Zhonglu", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "唐镇", "en": "Tangzhen", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "广兰路", "en": "Guanglan Lu", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "金科路", "en": "Jinke Lu", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "张江高科", "en": "Zhangjiang Hi-Tech Park", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "龙阳路", "en": "Longyang Lu", "xfer": [{"line": "7号线", "color": "#FF6900"}, {"line": "16号线", "color": "#99CC66"}, {"line": "18号线", "color": "#D7000F"}, {"line": "磁浮线", "color": "#808080"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "世纪公园", "en": "Century Park", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "上海科技馆", "en": "Shanghai Science & Technology Museum", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "世纪大道", "en": "Century Avenue", "xfer": [{"line": "4号线", "color": "#52c41a"}, {"line": "6号线", "color": "#D9027D"}, {"line": "9号线", "color": "#71C5E8"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "浦东南路", "en": "Pudong Nanlu", "xfer": [{"line": "14号线", "color": "#8A2BE2"}, {"line": "19号线", "color": "#808080"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "陆家嘴", "en": "Lujiazui", "xfer": [{"line": "14号线", "color": "#8A2BE2"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "南京东路", "en": "East Nanjing Road", "xfer": [{"line": "10号线", "color": "#C0A8D1"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "人民广场", "en": "People's Square", "xfer": [{"line": "1号线", "color": "#ED3229"}, {"line": "8号线", "color": "#0099CC"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "南京西路", "en": "West Nanjing Road", "xfer": [{"line": "12号线", "color": "#007B65"}, {"line": "13号线", "color": "#F19D00"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "静安寺", "en": "Jing'an Temple", "xfer": [{"line": "7号线", "color": "#FF6900"}, {"line": "14号线", "color": "#8A2BE2"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "江苏路", "en": "Jiangsu Road", "xfer": [{"line": "11号线", "color": "#882E91"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "中山公园", "en": "Zhongshan Park", "xfer": [{"line": "3号线", "color": "#FFD700"}, {"line": "4号线", "color": "#52c41a"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "娄山关路", "en": "Loushanguan Lu", "xfer": [{"line": "15号线", "color": "#BBA786"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "威宁路", "en": "Weining Lu", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "北新泾", "en": "Beixinjing", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "淞虹路", "en": "Songhong Lu", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "虹桥2号航站楼", "en": "Hongqiao Airport Terminal 2", "xfer": [{"line": "10号线", "color": "#C0A8D1"}, {"line": "机场联络线", "color": "#808080"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "虹桥火车站", "en": "Hongqiao Railway Station", "xfer": [{"line": "10号线", "color": "#C0A8D1"}, {"line": "17号线", "color": "#B5BD00"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "国家会展中心", "en": "National Exhibition and Convention Center", "xfer": [{"line": "13号线", "color": "#F19D00"}, {"line": "17号线", "color": "#B5BD00"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "蟠祥路•国家会计学院站", "en": "Panxiang Road·Shanghai National Accounting Institute Station", "xfer": [], "dock": "both", "turnback": false, "expressStop": false}
+  ]
+};
+
+export const DEF_LINE_16 = {
+  "meta": {
+    "lineName": "16号线",
+    "themeColor": "#99CC66",
+    "mode": "linear",
+    "dirType": "up",
+    "serviceMode": "normal"
+  },
+  "stations": [
+    {"name": "龙阳路", "en": "Longyang Road", "xfer": [{"line": "2号线", "color": "#00ff4c"}, {"line": "7号线", "color": "#FF6900"}, {"line": "18号线", "color": "#D7000F"}, {"line": "磁浮线", "color": "#808080"}], "dock": "both", "turnback": true, "expressStop":  true},
+    {"name": "华夏中路", "en": "Huaxia Middle Road", "xfer": [{"line": "13号线", "color": "#F19D00"}], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "罗山路", "en": "Luoshan Road", "xfer": [{"line": "11号线", "color": "#882E91"}], "dock": "both", "turnback": false, "expressStop": true},
+    {"name": "周浦东", "en": "Zhoupu East", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "鹤沙航城", "en": "Hesha Hangcheng", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "航头东", "en": "Hangtou East", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "新场", "en": "Xinchang", "xfer": [], "dock": "both", "turnback": false, "expressStop": true},
+    {"name": "野生动物园", "en": "Wildlife Park", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "惠南", "en": "Huinan", "xfer": [], "dock": "both", "turnback": false, "expressStop": true},
+    {"name": "惠南东", "en": "Huinan East", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "书院", "en": "Shuyuan", "xfer": [], "dock": "both", "turnback": false, "expressStop": false},
+    {"name": "临港大道", "en": "Lingang Avenue", "xfer": [], "dock": "both", "turnback": false, "expressStop": true},
+    {"name": "滴水湖", "en": "Dishui Lake", "xfer": [], "dock": "both", "turnback": true, "expressStop": false}
+  ]
+};
 
 export const DEFAULT_SETTINGS = { 
     dark: false, 
@@ -8,6 +74,8 @@ export const DEFAULT_SETTINGS = {
     autoplay: { enabled: false, intervalSec: 8, key: "Space" },
     display: { 
         source: 'builtin', /* 'builtin' | 'custom' | 'gitee' */
-        url: '' /* custom display URL if source === 'custom' or Gitee pages raw URL */
+        url: '', /* custom display URL if source === 'custom' or Gitee pages raw URL */
+        width: 1900,
+        height: 600
     }
 };

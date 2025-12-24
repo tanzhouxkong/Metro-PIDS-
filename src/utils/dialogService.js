@@ -7,7 +7,7 @@ export async function alert(msg, title) {
       return await window.electronAPI.alert(msg);
     }
   } catch (e) {
-    // ignore
+    // 忽略异常
   }
   return new Promise((res)=>{ alert(String(msg)); res(true); });
 }
@@ -21,7 +21,7 @@ export async function confirm(msg, title) {
       return await window.electronAPI.confirm(msg);
     }
   } catch (e) {
-    // ignore
+    // 忽略异常
   }
   return confirm(String(msg));
 }
@@ -35,7 +35,7 @@ export async function prompt(msg, defaultValue, title) {
       return await window.electronAPI.prompt(msg, defaultValue);
     }
   } catch (e) {
-    // ignore
+    // 忽略异常
   }
   return prompt(String(msg), defaultValue);
 }

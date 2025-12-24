@@ -18,7 +18,7 @@ export default {
     confirm(msg, title) { this.title = title || '确认'; this.msg = msg || ''; this.type = 'confirm'; this.applyDialogBlur(true); this.visible = true; return new Promise((res)=>{ this.resolve = res; }) },
     prompt(msg, defaultValue, title) { this.title = title || '输入'; this.msg = msg || ''; this.inputVal = defaultValue || ''; this.type = 'prompt'; this.applyDialogBlur(true); this.visible = true; return new Promise((res)=>{ this.resolve = res; }) },
     methodsBridge(action, msg, a2, a3) {
-      // helper to call instance methods from window bridge; fallback to direct call
+      // 提供给 window 桥的实例方法调用；不可用则直接调用
       if (action === 'alert') return this.alert(msg, a2);
       if (action === 'confirm') return this.confirm(msg, a2);
       if (action === 'prompt') return this.prompt(msg, a2, a3);

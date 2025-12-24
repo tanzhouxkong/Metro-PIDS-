@@ -64,7 +64,7 @@
       log('Sent REC_STOP');
     });
 
-    // listen to broadcast/window messages
+    // 监听 BroadcastChannel / window 消息
     window.addEventListener('message', (ev) => { log('window.message: ' + JSON.stringify(ev.data)); });
     if (typeof BroadcastChannel !== 'undefined') {
       try {

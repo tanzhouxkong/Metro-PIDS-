@@ -24,9 +24,10 @@ export default {
       skip: false,
       door: 'left',
       dock: 'both',
-      // turnback: 'none' | 'pre' | 'post'
+      // 折返标记: 'none' | 'pre' | 'post'
       turnback: 'none',
-      xfer: []
+      xfer: [],
+      expressStop: false
     });
 
     const applyDialogBlur = (state) => {
@@ -35,7 +36,7 @@ export default {
       if (typeof blurApi === 'function') blurApi(state);
     };
 
-    // Watch for changes in the station prop to update the form
+    // 监听 station 变更以同步表单
     watch(() => props.station, (newVal) => {
       if (newVal) {
         form.name = newVal.name || '';
@@ -44,7 +45,8 @@ export default {
         form.door = newVal.door || 'left';
         form.dock = newVal.dock || 'both';
         form.turnback = newVal.turnback || 'none';
-        // Deep copy xfer array to avoid mutating prop directly
+        form.expressStop = newVal.expressStop !== undefined ? !!newVal.expressStop : false;
+        // 深拷贝换乘数组，避免直接改 props
         form.xfer = newVal.xfer ? JSON.parse(JSON.stringify(newVal.xfer)) : [];
       }
     }, { immediate: true, deep: true });
@@ -56,7 +58,7 @@ export default {
     };
 
     const save = () => {
-      if (!form.name) return; // Basic validation
+      if (!form.name) return; // 基础校验
       try { console.log('[StationEditor] save -> emitting save with', JSON.parse(JSON.stringify(form))); } catch(e){}
       emit('save', JSON.parse(JSON.stringify(form)));
       close();
@@ -95,6 +97,8 @@ export default {
           alignItems: 'center',
           justifyContent: 'center',
           background: 'rgba(0,0,0,0.45)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
           zIndex: '10001'
         },
         onClick: (e) => {
@@ -114,7 +118,7 @@ export default {
             color: 'var(--text)'
           }
         }, [
-          // Header
+          // 顶部区域
           h('div', {
             style: {
               display: 'flex',
@@ -140,7 +144,7 @@ export default {
             ])
           ]),
 
-          // Name Inputs
+          // 站名输入
           h('div', { style: { display: 'flex', gap: '12px', marginBottom: '16px' } }, [
             h('div', { style: { flex: '1' } }, [
                 h('label', { style: { display: 'block', fontSize: '12px', fontWeight: 'bold', color: 'var(--muted)', marginBottom: '6px' } }, '中文站名'),
@@ -162,9 +166,9 @@ export default {
             ])
           ]),
 
-          // Status & Door
+          // 运营状态与开门侧
           h('div', { style: { marginBottom: '20px', display: 'flex', gap: '12px' } }, [
-            // Status
+            // 运营状态
             h('div', { style: { flex: '1' } }, [
               h('div', { style: { fontSize: '12px', fontWeight: 'bold', color: 'var(--muted)', marginBottom: '6px' } }, '站点状态 (Status)'),
               h('div', { style: { display: 'flex', background: 'var(--bg)', padding: '4px', borderRadius: '6px' } }, [
@@ -178,7 +182,7 @@ export default {
                 }, '暂缓开通')
               ])
             ]),
-            // Door
+            // 开门方向
             h('div', { style: { flex: '1' } }, [
               h('div', { style: { fontSize: '12px', fontWeight: 'bold', color: 'var(--muted)', marginBottom: '6px' } }, '开门方向 (Door)'),
               h('div', { style: { display: 'flex', background: 'var(--bg)', padding: '4px', borderRadius: '6px' } }, [
@@ -194,10 +198,10 @@ export default {
                   style: { flex: '1', border: 'none', padding: '8px', borderRadius: '4px', background: form.door === 'both' ? 'var(--card)' : 'transparent', color: form.door === 'both' ? 'var(--text)' : 'var(--muted)', fontWeight: 'bold', boxShadow: form.door === 'both' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s' },
                   onClick: () => form.door = 'both'
                 }, '双侧')
-              ])
-            ])
-          ,
-          // Dock direction (only allow docking for up/down/both)
+          ])
+        ])
+        ,
+          // 停靠方向（仅允许上/下/双）
           h('div', { style: { flex: '1' } }, [
             h('div', { style: { fontSize: '12px', fontWeight: 'bold', color: 'var(--muted)', marginBottom: '6px' } }, '停靠方向 (Dock)'),
             h('div', { style: { display: 'flex', background: 'var(--bg)', padding: '4px', borderRadius: '6px' } }, [
@@ -216,7 +220,9 @@ export default {
             ])
           ])
           ]),
-            // Turnback option (pre/post/none)
+
+          // 折返设置 + 大站停靠同一行
+          h('div', { style: { flex: '1', display:'flex', gap:'12px', alignItems:'stretch', marginTop:'12px' } }, [
             h('div', { style: { flex: '1' } }, [
               h('div', { style: { fontSize: '12px', fontWeight: 'bold', color: 'var(--muted)', marginBottom: '6px' } }, '折返位置 (Turnback)'),
               h('div', { style: { display: 'flex', background: 'var(--bg)', padding: '4px', borderRadius: '6px' } }, [
@@ -234,8 +240,24 @@ export default {
                 }, '站后折返')
               ])
             ]),
+            h('div', { style: { width:'160px', display:'flex', flexDirection:'column', gap:'6px' } }, [
+              h('div', { style: { fontSize: '12px', fontWeight: 'bold', color: 'var(--muted)' } }, '大站停靠'),
+            h('div', { style: { display:'flex', background: 'var(--bg)', padding: '4px', borderRadius: '6px' } }, [
+              h('button', {
+                style: { flex: '1', border: 'none', padding: '8px', borderRadius: '4px', background: form.expressStop ? 'var(--card)' : 'transparent', color: form.expressStop ? 'var(--text)' : 'var(--muted)', fontWeight: 'bold', boxShadow: form.expressStop ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s' },
+                onClick: () => { form.expressStop = true; }
+              }, '停靠'),
+              h('button', {
+                style: { flex: '1', border: 'none', padding: '8px', borderRadius: '4px', background: !form.expressStop ? 'var(--card)' : 'transparent', color: !form.expressStop ? 'var(--text)' : 'var(--muted)', fontWeight: 'bold', boxShadow: !form.expressStop ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s' },
+                onClick: () => { form.expressStop = false; }
+              }, '跳过')
+            ])
+            ])
+          ]),
 
-          // Transfers
+          h('div', { style: { height:'12px' }}, []),
+
+          // 换乘设置
           h('div', {
             style: {
               display: 'flex',
@@ -249,10 +271,12 @@ export default {
             h('span', { style: { fontWeight: 'bold', fontSize: '14px' } }, '换乘线路'),
             h('button', {
               class: 'btn',
-              style: { background: 'var(--bg)', color: 'var(--accent)', fontSize: '12px', padding: '6px 12px' },
+              style: { background: 'var(--bg)', color: 'var(--accent)', fontSize: '12px', padding: '6px 12px', boxShadow:'0 4px 12px rgba(0,0,0,0.12)', borderRadius:'6px' },
               onClick: (e) => { e.preventDefault(); addXfer(); }
             }, '+ 添加换乘')
           ]),
+
+          h('div', { style: { height:'4px' }}, []),
 
           h('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } }, form.xfer.map((xf, idx) => {
             return h('div', { key: idx, style: { display: 'flex', gap: '8px', alignItems: 'center' } }, [

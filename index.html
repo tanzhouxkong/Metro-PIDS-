@@ -11,7 +11,7 @@
                 link.rel = 'stylesheet';
                 link.href = cdn;
                 document.head.appendChild(link);
-                // fallback: if not loaded within 2000ms, inject local icons
+                // 回退：2000ms 未加载则注入本地图标
                 setTimeout(function(){
                     var loaded = false;
                     try { loaded = !!(window.getComputedStyle && window.getComputedStyle(document.body, ':before')); } catch(e) { loaded = false; }
@@ -27,7 +27,7 @@
     <style>
         /* ================= 全局定义 ================= */
         :root { --theme: #00b894; --font: "Microsoft YaHei", sans-serif; --gold: #ffaa00; --dark: #2d3436;
-            /* Light theme variables */
+            /* 浅色主题变量 */
             --bg: #f0f2f5;
             --card: #ffffff;
             --card-border: #f0f0f0;

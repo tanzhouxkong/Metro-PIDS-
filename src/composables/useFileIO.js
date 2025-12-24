@@ -16,11 +16,16 @@ export function useFileIO(state) {
             if (!('xfer' in s) || !Array.isArray(s.xfer)) s.xfer = [];
             if (!('en' in s)) s.en = '';
             if (!('name' in s)) s.name = '';
+            // 添加折返位置和大站停靠的默认值
+            if (!('turnback' in s)) s.turnback = false;
+            if (!('expressStop' in s)) s.expressStop = false;
             return s;
         });
         if (!line.meta.lineName) line.meta.lineName = '线路';
         if (!('startIdx' in line.meta)) line.meta.startIdx = -1;
         if (!('termIdx' in line.meta)) line.meta.termIdx = -1;
+        // 确保 serviceMode 存在
+        if (!('serviceMode' in line.meta)) line.meta.serviceMode = 'normal';
         return line;
     }
 
@@ -98,7 +103,7 @@ export function useFileIO(state) {
             state.store.cur = Math.max(0, state.store.list.length - 1);
             state.appData = state.store.list[state.store.cur];
             state.rt = { idx: 0, state: 0 };
-            // Trigger sync if possible, or rely on reactivity
+            // 若可用则触发同步，否则依赖响应式更新
             if (typeof window.sync === 'function') window.sync();
             await showMsg('刷新完成，新增: ' + added + '，更新: ' + updated);
         } catch (e) {

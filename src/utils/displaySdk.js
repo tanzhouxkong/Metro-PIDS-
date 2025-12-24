@@ -1,14 +1,14 @@
-// Lightweight Display SDK for controlling the display endpoint
-// Supports BroadcastChannel (metro_pids_v3) and falls back to window.postMessage
-// Usage:
-// const sdk = createDisplaySdk();
-// sdk.sendSync(appData, rt);
-// sdk.startRec(800000);
-// sdk.onMessage((msg) => { console.log(msg); });
+// 轻量显示端 SDK：用于控制显示窗口
+// 支持 BroadcastChannel (metro_pids_v3)，否则回退 window.postMessage
+// 用法示例：
+// 示例：const sdk = createDisplaySdk();
+// 示例：sdk.sendSync(appData, rt);
+// 示例：sdk.startRec(800000);
+// 示例：sdk.onMessage((msg) => { console.log(msg); });
 
 export function createDisplaySdk(options = {}) {
   const channelName = options.channelName || 'metro_pids_v3';
-  const targetWindow = options.targetWindow || null; // optional - a Window reference
+  const targetWindow = options.targetWindow || null; // 可选：指定目标窗口引用
   const targetOrigin = options.targetOrigin || '*';
   let bc = null;
   let usingBC = false;
@@ -34,7 +34,7 @@ export function createDisplaySdk(options = {}) {
         return true;
       }
       if (typeof window !== 'undefined' && typeof window.postMessage === 'function') {
-        // Send to same-origin listeners (display listens to window.message too)
+        // 发送给同源监听者（显示端也监听 window.message）
         window.postMessage(msg, targetOrigin);
         return true;
       }
@@ -47,15 +47,15 @@ export function createDisplaySdk(options = {}) {
   const sendSync = (appData, rtState = null) => {
     const msg = { t: 'SYNC', d: appData };
     if (rtState) msg.r = rtState;
-    // also persist a snapshot locally (display restores from localStorage on boot)
+    // 同步时也持久化快照（显示端启动时从 localStorage 恢复）
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
-        // compute and embed effectiveDoor if needed so display restore keeps the inverted side
+        // 如需倒换车门则写入 _effectiveDoor，便于恢复
         try {
           const app = msg.d;
           const rt = msg.r || {};
           const meta = app && app.meta ? app.meta : null;
-          // try to read previous snapshot from localStorage to detect up->down transition
+          // 尝试读取上一次快照以识别上下行切换
           let prevDir = null;
           try {
             const prevRaw = window.localStorage.getItem('metro_pids_display_snapshot');
@@ -86,7 +86,7 @@ export function createDisplaySdk(options = {}) {
         window.localStorage.setItem('metro_pids_display_snapshot', JSON.stringify(msg));
       }
     } catch (e) {
-      // ignore storage errors
+      // 存储异常忽略
     }
     return post(msg);
   };
@@ -95,15 +95,15 @@ export function createDisplaySdk(options = {}) {
   const startRec = (bps = 800000) => post({ t: 'REC_START', bps });
   const stopRec = () => post({ t: 'REC_STOP' });
 
-  // Helper to send raw command types expected by display
+  // 发送显示端期望的原始命令类型
   const sendCmd = (type, payload = {}) => post(Object.assign({ t: type }, payload));
 
-  // Subscribe to messages coming back from display or other controllers
+  // 订阅来自显示端或其他控制端的消息
   const listeners = new Set();
   const handleIncoming = (ev) => {
     const data = ev && ev.data ? ev.data : ev;
     if (!data) return;
-    // normalize BroadcastChannel event vs Window message
+    // 统一处理 BroadcastChannel 与 window message
     const msg = data;
     listeners.forEach((fn) => {
       try { fn(msg); } catch (e) { console.warn('displaySdk listener error', e); }
@@ -116,7 +116,7 @@ export function createDisplaySdk(options = {}) {
     return () => { listeners.delete(fn); };
   };
 
-  // wire up listeners
+  // 注册监听
   if (usingBC && bc) {
     bc.addEventListener('message', handleIncoming);
   }

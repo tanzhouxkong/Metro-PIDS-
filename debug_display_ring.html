@@ -12,7 +12,7 @@
   <div id="root"></div>
   <script type="module">
     import { drawRing } from './src/utils/displayWindowLogic.js';
-    // Minimal mock to call drawRing - we need an element container and a fake appData + rt
+    // 最小化示例：准备容器与伪造 appData/rt 调用 drawRing
     const root = document.getElementById('root');
     const container = document.createElement('div');
     container.style.width = '1200px';
@@ -20,18 +20,18 @@
     container.style.margin = '40px auto';
     root.appendChild(container);
 
-    // sample ring appData
+    // 环线示例数据
     const appData = {
       meta: { dirType: 'outer', themeColor: '#00b894', mode: 'loop' },
       stations: []
     };
-    // create 18 sample stations
+    // 创建 18 个示例车站
     for (let i=0;i<18;i++) {
       appData.stations.push({ name: '站 ' + (i+1), en: 'St ' + (i+1) });
     }
     const rt = { idx: 2, state: 1 };
 
-    // draw
+    // 绘制
     drawRing(container, appData.stations, appData.meta);
   </script>
 </body>
