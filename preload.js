@@ -173,6 +173,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGitHubReleases: async () => {
     try { return await ipcRenderer.invoke('github/get-releases'); } catch (e) { return { ok: false, error: String(e) }; }
   },
+<<<<<<< HEAD
   // 获取 Gitee Releases 列表
   getGiteeReleases: async () => {
     try { return await ipcRenderer.invoke('gitee/get-releases'); } catch (e) { return { ok: false, error: String(e) }; }
@@ -192,6 +193,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGiteeTokenFromEnv: async () => {
     try { return await ipcRenderer.invoke('env/get-gitee-token'); } catch (e) { return null; }
   },
+=======
+  getAppVersion: async () => {
+    try { return await ipcRenderer.invoke('app/get-version'); } catch (e) { return { ok: false, error: String(e) }; }
+  },
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
   // 监听主进程日志
   onMainConsoleLog: (cb) => {
     const l = (e, msg) => cb(msg);
@@ -203,6 +211,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('main-console-error', l);
     return () => ipcRenderer.removeListener('main-console-error', l);
   },
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
   // 允许模态页将 alert 结果回传主进程
   sendAlertResponse: (data) => {
     try { ipcRenderer.send('electron-alert-response', data); } catch (e) {}
@@ -216,9 +231,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   cancelColorPick: () => {
     try { ipcRenderer.send('color-picker-cancel'); } catch (e) {}
+<<<<<<< HEAD
   },
   // 通知 API
   showNotification: async (title, body, options) => {
     try { return await ipcRenderer.invoke('notification/show', { title, body, options }); } catch (e) { return { ok: false, error: String(e) }; }
+=======
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
   }
 });

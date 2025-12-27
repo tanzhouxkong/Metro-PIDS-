@@ -1,6 +1,18 @@
 export const DEF = {
   "meta": {
+<<<<<<< HEAD
     "lineName": "上海地铁2号线",
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+    "lineName": "上海地铁2号线",
+=======
+    "lineName": "2号线",
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+    "lineName": "2号线",
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
     "themeColor": "#00ff4c",
     "mode": "linear",
     "dirType": "up",
@@ -43,7 +55,19 @@ export const DEF = {
 
 export const DEF_LINE_16 = {
   "meta": {
+<<<<<<< HEAD
     "lineName": "上海地铁16号线",
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+    "lineName": "上海地铁16号线",
+=======
+    "lineName": "16号线",
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+    "lineName": "16号线",
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
     "themeColor": "#99CC66",
     "mode": "linear",
     "dirType": "up",
@@ -65,6 +89,11 @@ export const DEF_LINE_16 = {
     {"name": "滴水湖", "en": "Dishui Lake", "xfer": [], "dock": "both", "turnback": true, "expressStop": false}
   ]
 };
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
 
 export const DEF_JINAN_BUS = {
   "meta": {
@@ -117,7 +146,11 @@ export const DEF_JINAN_METRO_1 = {"meta":{"lineName":"济南地铁1号线","them
 
 export const DEF_JINAN_METRO_2 = {"meta":{"lineName":"济南地铁2号线","themeColor":"#EFAF21","mode":"linear","dirType":"up","serviceMode":"normal","startIdx":0,"termIdx":18,"version":9},"stations":[{"name":"王府庄","en":"Wangfuzhuang","xfer":[{"line":"1号线","color":"#B73F91"}],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下二层岛式","region":"市中区、槐荫区"},{"name":"腊山南","en":"Lashan Nan","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"槐荫区"},{"name":"腊山","en":"Lashan","skip":false,"door":"right","dock":"both","turnback":"none","xfer":[{"line":"4号线","color":"#178f3b"}],"expressStop":false},{"name":"二环西路","en":"Erhuan Xilu","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下二层岛式","region":"槐荫区"},{"name":"老屯","en":"Laotun","skip":false,"door":"right","dock":"both","turnback":"none","xfer":[{"line":"6号线","color":"#2ABAEE","suspended":true}],"expressStop":false},{"name":"八里桥","en":"Baliqiao","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下三层岛式","region":"天桥区"},{"name":"益康路","en":"Yikang Lu","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下二层岛式","region":"天桥区"},{"name":"济南站北","en":"Jinan Railway Station North","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"天桥区"},{"name":"济泺路","en":"Jiluo Lu","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"天桥区"},{"name":"生产路","en":"Shengchan Lu","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"天桥区"},{"name":"北园","en":"Beiyuan","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"天桥区"},{"name":"历山路","en":"Lishan Lu","skip":false,"door":"right","dock":"both","turnback":"none","xfer":[{"line":"7号线","color":"#EE1918","suspended":true}],"expressStop":false},{"name":"七里堡","en":"Qilibao","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历城区"},{"name":"祝甸","en":"Zhudian","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历城区"},{"name":"八涧堡","en":"Bajianpu","xfer":[{"line":"3号线","color":"#013895"}],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下三层岛式","region":"历下区"},{"name":"姜家庄","en":"Jiangjiazhuang","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下二层岛式","region":"历下区"},{"name":"凤凰路","en":"Fenghuang Lu","xfer":[{"line":"6号线","color":"#2ABAEE"}],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历城区"},{"name":"鲍山","en":"Baoshan","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历城区"},{"name":"彭家庄","en":"Pengjiazhuang","skip":false,"door":"right","dock":"both","turnback":true,"xfer":[{"line":"4号线","color":"#178f3b"}],"expressStop":false}]};
 
+<<<<<<< HEAD
 export const DEF_JINAN_METRO_3 = {"meta":{"lineName":"济南地铁3号线","themeColor":"#013895","mode":"linear","dirType":"up","serviceMode":"normal","startIdx":0,"termIdx":12,"version":8},"stations":[{"name":"龙洞","en":"Longdong","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下岛式","region":"历下区"},{"name":"孟家庄","en":"Mengjiazhuang","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下","region":"历下区"},{"name":"龙奥大厦","en":"Long'ao Dasha","xfer":[{"line":"7号线","color":"#EE1918","suspended":true}],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下","region":"历下区"},{"name":"奥体中心","en":"Olympic Sports Center","xfer":[{"line":"4号线","color":"#008080"}],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下","region":"历下区"},{"name":"安成街","en":"Ancheng Jie","xfer":[{"line":"6号线","color":"#2ABAEE","suspended":true}],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下","region":"历下区"},{"name":"丁家庄","en":"Dingjiazhuang","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下","region":"历下区"},{"name":"花园东路","en":"Huayuan Donglu","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下","region":"历下区"},{"name":"八涧堡","en":"Bajianpu","skip":false,"door":"left","dock":"both","turnback":"none","xfer":[{"line":"2号线","color":"#EFAF21"}],"expressStop":false},{"name":"张马屯","en":"Zhangmatun","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下","region":"历城区"},{"name":"王舍人","en":"Wangsheren","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下","region":"历城区"},{"name":"裴家营","en":"Peijiaying","skip":false,"door":"left","dock":"both","turnback":"none","xfer":[{"line":"9号线","color":"#bb9036","suspended":true}],"expressStop":false},{"name":"济南东站","en":"Jinan East Railway Station","xfer":[{"line":"6号线","color":"#2ABAEE"}],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下","region":"历城区"},{"name":"滩头","en":"Tantou","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下","region":"历城区"},{"name":"曲家庄","en":"Qujiazhuang","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下","region":"历城区"},{"name":"川流","en":"Chuanliu","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下","region":"历城区"},{"name":"临港北路","en":"Lingang Beilu","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下","region":"历城区"},{"name":"临空","en":"Linkong","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下","region":"历城区"},{"name":"机场南","en":"Airport South","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"left","skip":false,"stationType":"地下","region":"历城区"},{"name":"机场北","en":"Airport North","xfer":[],"dock":"both","turnback":true,"expressStop":false,"door":"left","skip":true,"stationType":"地下","region":"历城区"}]};
+=======
+export const DEF_JINAN_METRO_3 = {"meta":{"lineName":"济南地铁3号线","themeColor":"#013895","mode":"linear","dirType":"up","serviceMode":"normal","startIdx":0,"termIdx":12,"version":8},"stations":[{"name":"龙洞","en":"Longdong","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下岛式","region":"历下区"},{"name":"孟家庄","en":"Mengjiazhuang","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历下区"},{"name":"龙奥大厦","en":"Long'ao Dasha","xfer":[{"line":"7号线","color":"#EE1918","suspended":true}],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历下区"},{"name":"奥体中心","en":"Olympic Sports Center","xfer":[{"line":"4号线","color":"#008080"}],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历下区"},{"name":"安成街","en":"Ancheng Jie","xfer":[{"line":"6号线","color":"#2ABAEE","suspended":true}],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历下区"},{"name":"丁家庄","en":"Dingjiazhuang","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历下区"},{"name":"花园东路","en":"Huayuan Donglu","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历下区"},{"name":"八涧堡","en":"Bajianpu","skip":false,"door":"right","dock":"both","turnback":"none","xfer":[{"line":"2号线","color":"#EFAF21"}],"expressStop":false},{"name":"张马屯","en":"Zhangmatun","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历城区"},{"name":"王舍人","en":"Wangsheren","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历城区"},{"name":"裴家营","en":"Peijiaying","skip":false,"door":"right","dock":"both","turnback":"none","xfer":[{"line":"9号线","color":"#bb9036","suspended":true}],"expressStop":false},{"name":"济南东站","en":"Jinan East Railway Station","xfer":[{"line":"6号线","color":"#2ABAEE"}],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历城区"},{"name":"滩头","en":"Tantou","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历城区"},{"name":"曲家庄","en":"Qujiazhuang","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历城区"},{"name":"川流","en":"Chuanliu","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历城区"},{"name":"临港北路","en":"Lingang Beilu","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历城区"},{"name":"临空","en":"Linkong","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历城区"},{"name":"机场南","en":"Airport South","xfer":[],"dock":"both","turnback":false,"expressStop":false,"door":"right","skip":false,"stationType":"地下","region":"历城区"},{"name":"机场北","en":"Airport North","xfer":[],"dock":"both","turnback":true,"expressStop":false,"door":"right","skip":true,"stationType":"地下","region":"历城区"}]};
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
 
 export const DEF_JINAN_METRO_4 = {"meta":{"lineName":"济南地铁4号线","themeColor":"#178F3B","mode":"linear","dirType":"up","startIdx":-1,"termIdx":-1,"version":1},"stations":[{"name":"第一医科大学","en":"First Medical University","xfer":[],"door":"left","skip":false},{"name":"春风悦动公园","en":"Chunfeng Yuedong Park","xfer":[],"door":"left","skip":false},{"name":"济南西站西广场","en":"Jinan West Railway Station West Square","xfer":[{"line":"1号线","color":"#B73F91"},{"line":"6号线","color":"#2ABAEE"}],"door":"left","skip":false},{"name":"大杨","en":"Dayang","xfer":[{"line":"1号线","color":"#B73F91"}],"door":"left","skip":false},{"name":"腊山河公园","en":"Lashanhe Park","xfer":[],"door":"left","skip":false},{"name":"腊山","en":"Lashan","xfer":[{"line":"2号线","color":"#EFAF21"}],"door":"left","skip":false},{"name":"段店","en":"Duandian","xfer":[],"door":"left","skip":false},{"name":"营市街","en":"Yingshi Street","xfer":[],"door":"left","skip":false},{"name":"南辛庄","en":"Nanxinzhuang","xfer":[],"door":"left","skip":false},{"name":"五里牌坊","en":"Wulipai Archway","xfer":[],"door":"left","skip":false},{"name":"八一立交桥","en":"Bayi Overpass","xfer":[],"door":"left","skip":false},{"name":"省体育中心","en":"Provincial Sports Center","xfer":[],"door":"left","skip":false},{"name":"泉城公园","en":"Quancheng Park","xfer":[],"door":"left","skip":false},{"name":"千佛山","en":"Thousand Buddha Mountain","xfer":[],"door":"left","skip":false},{"name":"山师东路","en":"Shanshi East Road","xfer":[],"door":"left","skip":false},{"name":"山大路南口","en":"Shanda Road South Entrance","xfer":[],"door":"left","skip":false},{"name":"燕山立交桥","en":"Yanshan Overpass","xfer":[],"door":"left","skip":false},{"name":"浆水泉路","en":"Jiangshuiquan Road","xfer":[],"door":"left","skip":false},{"name":"山东博物馆","en":"Shandong Museum","xfer":[],"door":"left","skip":false},{"name":"转山西路(万象城)","en":"Zhuanshan West Road (MixC)","xfer":[{"line":"7号线","color":"#EE1918","suspended":true}],"door":"left","skip":false},{"name":"奥体中心","en":"Olympic Sports Center","xfer":[{"line":"3号线","color":"#013895"}],"door":"left","skip":false},{"name":"奥体东路","en":"Aoti East Road","xfer":[],"door":"left","skip":false},{"name":"舜泰广场","en":"Shuntai Plaza","xfer":[],"door":"left","skip":false},{"name":"汉峪金谷","en":"Hanyu Jingu","xfer":[],"door":"left","skip":false},{"name":"林家庄","en":"Linjiazhuang","xfer":[],"door":"left","skip":false},{"name":"黄金产业园","en":"Golden Industrial Park","xfer":[],"door":"left","skip":false},{"name":"文旅城","en":"Wenlvcheng","xfer":[],"door":"left","skip":false},{"name":"邢村立交桥西","en":"Xingcun Overpass West","xfer":[],"door":"left","skip":false},{"name":"邢村立交桥东","en":"Xingcun Overpass East","xfer":[{"line":"8号线","color":"#5E3791"}],"door":"left","skip":false},{"name":"唐冶公园","en":"Tangye Park","xfer":[],"door":"left","skip":false},{"name":"唐冶","en":"Tangye","xfer":[],"door":"left","skip":false},{"name":"历城二中唐冶校区","en":"Licheng No.2 High School Tangye Campus","xfer":[],"door":"left","skip":false},{"name":"彭家庄","en":"Pengjiazhuang","xfer":[{"line":"2号线","color":"#F5A623"},{"line":"高新云巴线","color":"#1878BE"}],"door":"left","skip":false}]};
 
@@ -173,6 +206,13 @@ export const DEF_JINAN_YUNBA = {
     {"name": "大正路", "en": "Dazheng Lu", "xfer": [], "dock": "both", "turnback": true, "expressStop": false, "door": "right", "skip": false, "stationType": "地下", "region": "历城区"}
   ]
 };
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
 
 export const DEFAULT_SETTINGS = { 
     dark: false, 

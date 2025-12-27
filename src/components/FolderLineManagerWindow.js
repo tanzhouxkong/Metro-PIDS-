@@ -710,7 +710,11 @@ export default {
       <!-- Main Content (Two Column Layout - QQ Style) -->
       <div style="display:flex; flex:1; overflow:hidden; background:var(--bg, #f5f5f5); margin-top:32px;">
         <!-- Left Sidebar: Folders (类似QQ群列表) -->
+<<<<<<< HEAD
         <div v-if="hasFoldersAPI && folders.length > 0" style="width:200px; border-right:1px solid var(--lm-sidebar-border, #e0e0e0); overflow-y:auto; background:var(--lm-sidebar-bg, #fafafa); flex-shrink:0;">
+=======
+        <div v-if="hasFoldersAPI && folders.length > 0" style="width:200px; border-right:1px solid #e0e0e0; overflow-y:auto; background:#fafafa; flex-shrink:0;">
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
           <div style="padding:8px 0;">
             <div 
               v-for="folder in folders" 
@@ -720,11 +724,16 @@ export default {
               :style="{
                 padding: '10px 16px',
                 cursor: 'pointer',
+<<<<<<< HEAD
                 background: selectedFolderId === folder.id ? 'var(--lm-sidebar-item-active, #e8e8e8)' : 'transparent',
+=======
+                background: selectedFolderId === folder.id ? '#e8e8e8' : 'transparent',
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                 transition: 'background 0.2s',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
+<<<<<<< HEAD
                 borderLeft: selectedFolderId === folder.id ? '3px solid var(--accent, #12b7f5)' : '3px solid transparent'
               }"
               @mouseover="$event.target.style.background = selectedFolderId === folder.id ? 'var(--lm-sidebar-item-active, #e8e8e8)' : 'var(--lm-sidebar-item-hover, #f0f0f0)'"
@@ -733,12 +742,23 @@ export default {
               <i class="fas fa-folder" :style="{fontSize:'16px', color: selectedFolderId === folder.id ? 'var(--accent, #12b7f5)' : 'var(--muted, #666)'}"></i>
               <div style="flex:1; min-width:0;">
                 <div style="font-size:14px; font-weight:500; color:var(--text, #333); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ folder.name }}</div>
+=======
+                borderLeft: selectedFolderId === folder.id ? '3px solid #12b7f5' : '3px solid transparent'
+              }"
+              @mouseover="$event.target.style.background = selectedFolderId === folder.id ? '#e8e8e8' : '#f0f0f0'"
+              @mouseout="$event.target.style.background = selectedFolderId === folder.id ? '#e8e8e8' : 'transparent'"
+            >
+              <i class="fas fa-folder" :style="{fontSize:'16px', color: selectedFolderId === folder.id ? '#12b7f5' : '#666'}"></i>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:14px; font-weight:500; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ folder.name }}</div>
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
               </div>
             </div>
           </div>
         </div>
 
         <!-- Right Content: Lines (类似QQ文件列表) -->
+<<<<<<< HEAD
         <div style="flex:1; background:var(--lm-content-bg, #fff); display:flex; flex-direction:column; overflow:hidden;">
           <!-- 显示当前选中的文件夹名称 -->
           <div v-if="hasFoldersAPI && folders.length > 0 && selectedFolderId" style="padding:12px 20px; background:var(--lm-header-bg, #f0f0f0); border-bottom:1px solid var(--lm-header-border, #e0e0e0); font-size:14px; font-weight:500; color:var(--muted, #666); flex-shrink:0;">
@@ -747,6 +767,16 @@ export default {
           </div>
           
           <div v-if="loading" style="display:flex; align-items:center; justify-content:center; flex:1; color:var(--muted, #999);">
+=======
+        <div style="flex:1; background:#fff; display:flex; flex-direction:column; overflow:hidden;">
+          <!-- 显示当前选中的文件夹名称 -->
+          <div v-if="hasFoldersAPI && folders.length > 0 && selectedFolderId" style="padding:12px 20px; background:#f0f0f0; border-bottom:1px solid #e0e0e0; font-size:14px; font-weight:500; color:#666; flex-shrink:0;">
+            <i class="fas fa-folder" style="margin-right:8px; color:#12b7f5;"></i>
+            <span>{{ folders.find(f => f.id === selectedFolderId)?.name || '未选择文件夹' }}</span>
+          </div>
+          
+          <div v-if="loading" style="display:flex; align-items:center; justify-content:center; flex:1; color:#999;">
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
             <div style="text-align:center;">
               <i class="fas fa-spinner fa-spin" style="font-size:32px; margin-bottom:16px;"></i>
               <div>加载中...</div>
@@ -754,7 +784,11 @@ export default {
           </div>
           <div v-else style="flex:1; display:flex; flex-direction:column; overflow:hidden; min-height:0; position:relative;">
             <!-- 列表头部 -->
+<<<<<<< HEAD
             <div v-if="currentLines.length > 0" style="padding:12px 20px; background:var(--lm-list-header-bg, #fafafa); border-bottom:1px solid var(--lm-header-border, #e0e0e0); display:flex; align-items:center; font-size:13px; color:var(--muted, #666); font-weight:500; flex-shrink:0;">
+=======
+            <div v-if="currentLines.length > 0" style="padding:12px 20px; background:#fafafa; border-bottom:1px solid #e0e0e0; display:flex; align-items:center; font-size:13px; color:#666; font-weight:500; flex-shrink:0;">
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
               <div style="width:40px;"></div>
               <div style="width:200px;">线路名称</div>
               <div style="width:80px; text-align:center;">颜色</div>
@@ -764,7 +798,11 @@ export default {
             <!-- 线路列表 -->
             <div style="flex:1; overflow-y:auto; padding:0; min-height:0; padding-bottom:60px; position:relative;">
               <!-- 空状态 -->
+<<<<<<< HEAD
               <div v-if="currentLines.length === 0" style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--muted, #999);">
+=======
+              <div v-if="currentLines.length === 0" style="display:flex; align-items:center; justify-content:center; height:100%; color:#999;">
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                 <div style="text-align:center;">
                   <i class="fas fa-folder-open" style="font-size:48px; margin-bottom:16px; opacity:0.5;"></i>
                   <div style="font-size:16px;">该文件夹中没有线路文件</div>
@@ -779,13 +817,22 @@ export default {
                 :style="{
                   padding: '12px 20px',
                   cursor: 'pointer',
+<<<<<<< HEAD
                   background: selectedLine && selectedLine.name === line.name ? 'var(--lm-list-item-active, #e8f4fd)' : 'transparent',
                   borderBottom: '1px solid var(--lm-header-border, #f0f0f0)',
+=======
+                  background: selectedLine && selectedLine.name === line.name ? '#e8f4fd' : 'transparent',
+                  borderBottom: '1px solid #f0f0f0',
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                   transition: 'background 0.2s',
                   display: 'flex',
                   alignItems: 'center'
                 }"
+<<<<<<< HEAD
                 @mouseover="(e) => { if (!selectedLine || selectedLine.name !== line.name) { e.currentTarget.style.background='var(--lm-list-item-hover, #f5f5f5)'; } }"
+=======
+                @mouseover="(e) => { if (!selectedLine || selectedLine.name !== line.name) { e.currentTarget.style.background='#f5f5f5'; } }"
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                 @mouseout="(e) => { if (!selectedLine || selectedLine.name !== line.name) { e.currentTarget.style.background='transparent'; } }"
               >
                 <!-- 复选框 -->
@@ -800,12 +847,18 @@ export default {
                 
                 <!-- 线路名称 -->
                 <div style="width:200px; min-width:200px; display:flex; align-items:center; gap:10px;" @click="toggleLineSelection(line)">
+<<<<<<< HEAD
                   <i class="fas fa-subway" style="font-size:16px; color:var(--muted, #999);"></i>
                   <div style="font-size:14px; font-weight:500; color:var(--text, #333); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" v-html="parseColorMarkup(line.name)"></div>
+=======
+                  <i class="fas fa-subway" style="font-size:16px; color:#999;"></i>
+                  <div style="font-size:14px; font-weight:500; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" v-html="parseColorMarkup(line.name)"></div>
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                 </div>
                 
                 <!-- 颜色 -->
                 <div style="width:80px; min-width:80px; display:flex; justify-content:center;">
+<<<<<<< HEAD
                   <div :style="{width:'24px', height:'24px', borderRadius:'4px', background:line.themeColor || '#5F27CD', border:'1px solid var(--lm-header-border, #e0e0e0)', flexShrink:0}"></div>
                 </div>
                 
@@ -813,39 +866,72 @@ export default {
                 <div style="flex:1; min-width:0; font-size:13px; color:var(--muted, #666); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" @click="toggleLineSelection(line)">
                   <span v-if="line.firstStation && line.lastStation">{{ line.firstStation }} → {{ line.lastStation }}</span>
                   <span v-else style="color:var(--muted, #999);">-</span>
+=======
+                  <div :style="{width:'24px', height:'24px', borderRadius:'4px', background:line.themeColor || '#5F27CD', border:'1px solid #e0e0e0', flexShrink:0}"></div>
+                </div>
+                
+                <!-- 首末站 -->
+                <div style="flex:1; min-width:0; font-size:13px; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" @click="toggleLineSelection(line)">
+                  <span v-if="line.firstStation && line.lastStation">{{ line.firstStation }} → {{ line.lastStation }}</span>
+                  <span v-else style="color:#999;">-</span>
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                 </div>
               </div>
             </div>
             
             <!-- 底部操作栏 -->
+<<<<<<< HEAD
             <div style="position:absolute; bottom:0; left:0; right:0; padding:12px 20px; background:var(--lm-bottom-bar-bg, rgba(250, 250, 250, 0.85)); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border-top:1px solid var(--lm-bottom-bar-border, rgba(224, 224, 224, 0.5)); display:flex; justify-content:space-between; align-items:center; z-index:10;">
+=======
+            <div style="position:absolute; bottom:0; left:0; right:0; padding:12px 20px; background:rgba(250, 250, 250, 0.85); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border-top:1px solid rgba(224, 224, 224, 0.5); display:flex; justify-content:space-between; align-items:center; z-index:10;">
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
               <!-- 左侧信息区域 -->
               <div style="display:flex; align-items:center; gap:16px; flex:1;">
                 <button 
                   v-if="hasFoldersAPI"
                   @click="addFolder()" 
+<<<<<<< HEAD
                   style="background:transparent; color:var(--muted, #666); border:1px solid var(--lm-header-border, #d0d0d0); padding:6px 14px; border-radius:4px; font-size:13px; font-weight:400; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;"
                   @mouseover="$event.target.style.background='var(--lm-list-item-hover, #f0f0f0)'; $event.target.style.borderColor='var(--lm-header-border, #bbb)'"
                   @mouseout="$event.target.style.background='transparent'; $event.target.style.borderColor='var(--lm-header-border, #d0d0d0)'"
+=======
+                  style="background:transparent; color:#666; border:1px solid #d0d0d0; padding:6px 14px; border-radius:4px; font-size:13px; font-weight:400; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;"
+                  @mouseover="$event.target.style.background='#f0f0f0'; $event.target.style.borderColor='#bbb'"
+                  @mouseout="$event.target.style.background='transparent'; $event.target.style.borderColor='#d0d0d0'"
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                 >
                   <i class="fas fa-plus" style="font-size:12px;"></i> 添加文件夹
                 </button>
                 
                 <button 
                   @click="createNewLine()" 
+<<<<<<< HEAD
                   style="background:var(--btn-blue-bg, #1677ff); color:var(--btn-text, #fff); border:none; border-radius:4px; padding:6px 12px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;"
                   @mouseover="$event.target.style.background='#0958d9'"
                   @mouseout="$event.target.style.background='var(--btn-blue-bg, #1677ff)'"
+=======
+                  style="background:#1677ff; color:#fff; border:none; border-radius:4px; padding:6px 12px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;"
+                  @mouseover="$event.target.style.background='#0958d9'"
+                  @mouseout="$event.target.style.background='#1677ff'"
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                 >
                   <i class="fas fa-plus" style="font-size:12px;"></i> 新建线路
                 </button>
                 
                 <!-- 选中线路信息 -->
+<<<<<<< HEAD
                 <div v-if="selectedLine" style="display:flex; align-items:center; gap:8px; color:var(--muted, #666); font-size:13px;">
                   <i class="fas fa-check-circle" style="color:var(--accent, #12b7f5); font-size:14px;"></i>
                   <span>已选择：<strong style="color:var(--text, #333);">{{ selectedLine.name }}</strong></span>
                 </div>
                 <div v-else style="color:var(--muted, #999); font-size:13px;">
+=======
+                <div v-if="selectedLine" style="display:flex; align-items:center; gap:8px; color:#666; font-size:13px;">
+                  <i class="fas fa-check-circle" style="color:#12b7f5; font-size:14px;"></i>
+                  <span>已选择：<strong style="color:#333;">{{ selectedLine.name }}</strong></span>
+                </div>
+                <div v-else style="color:#999; font-size:13px;">
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                   未选择线路
                 </div>
               </div>
@@ -857,8 +943,13 @@ export default {
                   :disabled="!selectedLine"
                   :style="{
                     padding: '10px 24px',
+<<<<<<< HEAD
                     background: selectedLine ? 'var(--btn-blue-bg, #1677ff)' : 'var(--btn-gray-bg, #d9d9d9)',
                     color: 'var(--btn-text, #fff)',
+=======
+                    background: selectedLine ? '#1677ff' : '#d9d9d9',
+                    color: '#fff',
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                     border: 'none',
                     borderRadius: '6px',
                     fontSize: '14px',
@@ -869,7 +960,11 @@ export default {
                     opacity: selectedLine ? 1 : 0.6
                   }"
                   @mouseover="(e) => { if (selectedLine) { e.target.style.background='#0958d9'; e.target.style.boxShadow='0 4px 12px rgba(22, 119, 255, 0.3)'; } }"
+<<<<<<< HEAD
                   @mouseout="(e) => { if (selectedLine) { e.target.style.background='var(--btn-blue-bg, #1677ff)'; e.target.style.boxShadow='0 2px 8px rgba(22, 119, 255, 0.2)'; } }"
+=======
+                  @mouseout="(e) => { if (selectedLine) { e.target.style.background='#1677ff'; e.target.style.boxShadow='0 2px 8px rgba(22, 119, 255, 0.2)'; } }"
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                 >
                   <i class="fas fa-check" style="margin-right:6px;"></i>
                   使用当前线路
@@ -892,8 +987,13 @@ export default {
         position: 'fixed',
         left: contextMenu.x + 'px',
         top: contextMenu.y + 'px',
+<<<<<<< HEAD
         background: 'var(--lm-menu-bg, #fff)',
         border: '1px solid var(--lm-menu-border, #e0e0e0)',
+=======
+        background: '#fff',
+        border: '1px solid #e0e0e0',
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         borderRadius: '4px',
         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
         zIndex: 10000,
@@ -903,30 +1003,54 @@ export default {
     >
       <div 
         @click="handleContextMenuRename(contextMenu.folderId)"
+<<<<<<< HEAD
         style="padding: 8px 16px; cursor: pointer; font-size: 13px; color: var(--text, #333); display: flex; align-items: center; gap: 8px; transition: background 0.2s;"
         @mouseover="$event.target.style.background='var(--lm-menu-item-hover, #f0f0f0)'"
         @mouseout="$event.target.style.background='transparent'"
       >
         <i class="fas fa-edit" style="font-size: 12px; color: var(--muted, #666);"></i>
+=======
+        style="padding: 8px 16px; cursor: pointer; font-size: 13px; color: #333; display: flex; align-items: center; gap: 8px; transition: background 0.2s;"
+        @mouseover="$event.target.style.background='#f0f0f0'"
+        @mouseout="$event.target.style.background='transparent'"
+      >
+        <i class="fas fa-edit" style="font-size: 12px; color: #666;"></i>
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         重命名
       </div>
       <div 
         @click="openFolderInExplorer(contextMenu.folderId)"
+<<<<<<< HEAD
         style="padding: 8px 16px; cursor: pointer; font-size: 13px; color: var(--text, #333); display: flex; align-items: center; gap: 8px; transition: background 0.2s;"
         @mouseover="$event.target.style.background='var(--lm-menu-item-hover, #f0f0f0)'"
         @mouseout="$event.target.style.background='transparent'"
       >
         <i class="fas fa-folder-open" style="font-size: 12px; color: var(--muted, #666);"></i>
+=======
+        style="padding: 8px 16px; cursor: pointer; font-size: 13px; color: #333; display: flex; align-items: center; gap: 8px; transition: background 0.2s;"
+        @mouseover="$event.target.style.background='#f0f0f0'"
+        @mouseout="$event.target.style.background='transparent'"
+      >
+        <i class="fas fa-folder-open" style="font-size: 12px; color: #666;"></i>
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         打开
       </div>
       <div 
         v-if="contextMenu.folderId !== 'default'"
         @click="handleContextMenuDelete(contextMenu.folderId)"
+<<<<<<< HEAD
         style="padding: 8px 16px; cursor: pointer; font-size: 13px; color: var(--btn-red-bg, #ff4444); display: flex; align-items: center; gap: 8px; transition: background 0.2s;"
         @mouseover="$event.target.style.background='rgba(255, 68, 68, 0.1)'"
         @mouseout="$event.target.style.background='transparent'"
       >
         <i class="fas fa-trash" style="font-size: 12px; color: var(--btn-red-bg, #ff4444);"></i>
+=======
+        style="padding: 8px 16px; cursor: pointer; font-size: 13px; color: #ff4444; display: flex; align-items: center; gap: 8px; transition: background 0.2s;"
+        @mouseover="$event.target.style.background='#ffe0e0'"
+        @mouseout="$event.target.style.background='transparent'"
+      >
+        <i class="fas fa-trash" style="font-size: 12px; color: #ff4444;"></i>
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         删除
       </div>
       </div>
@@ -949,8 +1073,13 @@ export default {
           position: 'fixed',
           left: lineContextMenu.x + 'px',
           top: lineContextMenu.y + 'px',
+<<<<<<< HEAD
           background: 'var(--lm-menu-bg, #fff)',
           border: '1px solid var(--lm-menu-border, #e0e0e0)',
+=======
+          background: '#fff',
+          border: '1px solid #e0e0e0',
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
           borderRadius: '4px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
           zIndex: 9999,
@@ -960,15 +1089,24 @@ export default {
       >
       <div 
         @click="openLine(lineContextMenu.line)"
+<<<<<<< HEAD
         style="padding: 8px 16px; cursor: pointer; font-size: 13px; color: var(--text, #333); display: flex; align-items: center; gap: 8px; transition: background 0.2s;"
         @mouseover="$event.target.style.background='var(--lm-menu-item-hover, #f0f0f0)'"
         @mouseout="$event.target.style.background='transparent'"
       >
         <i class="fas fa-folder-open" style="font-size: 12px; color: var(--muted, #666);"></i>
+=======
+        style="padding: 8px 16px; cursor: pointer; font-size: 13px; color: #333; display: flex; align-items: center; gap: 8px; transition: background 0.2s;"
+        @mouseover="$event.target.style.background='#f0f0f0'"
+        @mouseout="$event.target.style.background='transparent'"
+      >
+        <i class="fas fa-folder-open" style="font-size: 12px; color: #666;"></i>
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         打开
       </div>
       <div 
         @click="renameLine(lineContextMenu.line)"
+<<<<<<< HEAD
         style="padding: 8px 16px; cursor: pointer; font-size: 13px; color: var(--text, #333); display: flex; align-items: center; gap: 8px; transition: background 0.2s;"
         @mouseover="$event.target.style.background='var(--lm-menu-item-hover, #f0f0f0)'"
         @mouseout="$event.target.style.background='transparent'"
@@ -984,15 +1122,40 @@ export default {
         @mouseout="$event.target.style.background='transparent'"
       >
         <i class="fas fa-copy" style="font-size: 12px; color: var(--muted, #666);"></i>
+=======
+        style="padding: 8px 16px; cursor: pointer; font-size: 13px; color: #333; display: flex; align-items: center; gap: 8px; transition: background 0.2s;"
+        @mouseover="$event.target.style.background='#f0f0f0'"
+        @mouseout="$event.target.style.background='transparent'"
+      >
+        <i class="fas fa-edit" style="font-size: 12px; color: #666;"></i>
+        重命名
+      </div>
+      <div style="height: 1px; background: #e0e0e0; margin: 4px 0;"></div>
+      <div 
+        @click="copyLine(lineContextMenu.line)"
+        style="padding: 8px 16px; cursor: pointer; font-size: 13px; color: #333; display: flex; align-items: center; gap: 8px; transition: background 0.2s;"
+        @mouseover="$event.target.style.background='#f0f0f0'"
+        @mouseout="$event.target.style.background='transparent'"
+      >
+        <i class="fas fa-copy" style="font-size: 12px; color: #666;"></i>
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         复制
       </div>
       <div 
         @click="cutLine(lineContextMenu.line)"
+<<<<<<< HEAD
         style="padding: 8px 16px; cursor: pointer; font-size: 13px; color: var(--text, #333); display: flex; align-items: center; gap: 8px; transition: background 0.2s;"
         @mouseover="$event.target.style.background='var(--lm-menu-item-hover, #f0f0f0)'"
         @mouseout="$event.target.style.background='transparent'"
       >
         <i class="fas fa-cut" style="font-size: 12px; color: var(--muted, #666);"></i>
+=======
+        style="padding: 8px 16px; cursor: pointer; font-size: 13px; color: #333; display: flex; align-items: center; gap: 8px; transition: background 0.2s;"
+        @mouseover="$event.target.style.background='#f0f0f0'"
+        @mouseout="$event.target.style.background='transparent'"
+      >
+        <i class="fas fa-cut" style="font-size: 12px; color: #666;"></i>
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         剪贴
       </div>
       <div 
@@ -1001,13 +1164,18 @@ export default {
           padding: '8px 16px',
           cursor: clipboard.type ? 'pointer' : 'not-allowed',
           fontSize: '13px',
+<<<<<<< HEAD
           color: clipboard.type ? 'var(--text, #333)' : 'var(--muted, #999)',
+=======
+          color: clipboard.type ? '#333' : '#999',
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
           transition: 'background 0.2s',
           opacity: clipboard.type ? 1 : 0.5
         }"
+<<<<<<< HEAD
         @mouseover="clipboard.type && ($event.target.style.background='var(--lm-menu-item-hover, #f0f0f0)')"
         @mouseout="clipboard.type && ($event.target.style.background='transparent')"
       >
@@ -1022,6 +1190,22 @@ export default {
         @mouseout="$event.target.style.background='transparent'"
       >
         <i class="fas fa-trash" style="font-size: 12px; color: var(--btn-red-bg, #ff4444);"></i>
+=======
+        @mouseover="clipboard.type && ($event.target.style.background='#f0f0f0')"
+        @mouseout="clipboard.type && ($event.target.style.background='transparent')"
+      >
+        <i class="fas fa-paste" :style="{fontSize: '12px', color: clipboard.type ? '#666' : '#999'}"></i>
+        粘贴
+      </div>
+      <div style="height: 1px; background: #e0e0e0; margin: 4px 0;"></div>
+      <div 
+        @click="deleteLine(lineContextMenu.line)"
+        style="padding: 8px 16px; cursor: pointer; font-size: 13px; color: #ff4444; display: flex; align-items: center; gap: 8px; transition: background 0.2s;"
+        @mouseover="$event.target.style.background='#ffe0e0'"
+        @mouseout="$event.target.style.background='transparent'"
+      >
+        <i class="fas fa-trash" style="font-size: 12px; color: #ff4444;"></i>
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         删除
       </div>
       </div>

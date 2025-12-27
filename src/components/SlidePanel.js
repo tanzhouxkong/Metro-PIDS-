@@ -5,9 +5,22 @@ import { usePidsState } from '../composables/usePidsState.js'
 import { useController } from '../composables/useController.js'
 import { useSettings } from '../composables/useSettings.js'
 import dialogService from '../utils/dialogService.js'
+<<<<<<< HEAD
 import { showNotification } from '../utils/notificationService.js'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import ColorPicker from './ColorPicker.js'
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+import { ref, computed, watch, onMounted } from 'vue'
+import ColorPicker from './ColorPicker.js'
+=======
+import { ref, computed } from 'vue'
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+import { ref, computed } from 'vue'
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
 
 export default {
   name: 'SlidePanel',
@@ -54,6 +67,11 @@ export default {
     const askUser = async (msg, title) => dialogService.confirm(msg, title)
     const promptUser = async (msg, defaultValue, title) => dialogService.prompt(msg, defaultValue, title)
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
     // 检查是否有 Electron API
     const hasElectronAPI = computed(() => {
       return typeof window !== 'undefined' && window.electronAPI && window.electronAPI.startColorPick;
@@ -80,6 +98,13 @@ export default {
       openColorPicker();
     }
 
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
     // 兼容旧数据，补齐 serviceMode
     if (!pidsState.appData.meta.serviceMode) pidsState.appData.meta.serviceMode = 'normal';
 
@@ -147,8 +172,19 @@ export default {
         newL.meta.lineName = name;
         newL.meta.themeColor = '#' + Math.floor(Math.random()*16777215).toString(16);
         if (!newL.meta.serviceMode) newL.meta.serviceMode = 'normal';
+<<<<<<< HEAD
         // 清空站点列表
         newL.stations = [];
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+        // 清空站点列表
+        newL.stations = [];
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         pidsState.store.list.push(newL);
         switchLine(pidsState.store.list.length - 1);
     }
@@ -310,6 +346,7 @@ export default {
         }
     }, { immediate: true });
 
+<<<<<<< HEAD
     // 监听分辨率缩放变化
     let lastDevicePixelRatio = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
     let scaleCheckInterval = null;
@@ -328,6 +365,8 @@ export default {
         }
     }
 
+=======
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
     // 监听来自线路管理器的线路切换请求
     onMounted(async () => {
         if (typeof window !== 'undefined' && window.electronAPI && window.electronAPI.onSwitchLineRequest) {
@@ -346,12 +385,15 @@ export default {
         } catch (e) {
             console.warn('初始化预设线路失败:', e);
         }
+<<<<<<< HEAD
 
         // 启动分辨率缩放监听（每5秒检查一次）
         if (typeof window !== 'undefined') {
             lastDevicePixelRatio = window.devicePixelRatio || 1;
             scaleCheckInterval = setInterval(checkScaleChange, 5000);
         }
+=======
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
     });
 
     // 打开线路管理器
@@ -392,7 +434,19 @@ export default {
     }
 
         // 更新模块状态（检查中/可用/下载中/已下载）
+<<<<<<< HEAD
     const updateState = ref({ checking: false, available: false, downloading: false, downloaded: false, progress: 0, info: null, error: null, isLatest: false });
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+    const updateState = ref({ checking: false, available: false, downloading: false, downloaded: false, progress: 0, info: null, error: null, isLatest: false });
+=======
+    const updateState = ref({ checking: false, available: false, downloading: false, downloaded: false, progress: 0, info: null });
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+    const updateState = ref({ checking: false, available: false, downloading: false, downloaded: false, progress: 0, info: null });
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
 
         const version = ref('未知');
         (async () => {
@@ -404,6 +458,11 @@ export default {
             } catch (e) {}
         })();
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         // 配置主进程日志监听（用于调试）
         if (typeof window !== 'undefined' && window.electronAPI) {
             try {
@@ -418,6 +477,13 @@ export default {
             }
         }
         
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         // 配置更新事件监听（仅在 Electron 环境）
         if (typeof window !== 'undefined' && window.electronAPI) {
             try {
@@ -427,12 +493,15 @@ export default {
                     updateState.value.downloaded = false;
                     updateState.value.info = info || null;
                     // 不再自动弹出对话框，由用户手动点击下载
+<<<<<<< HEAD
                     // 发送通知
                     const version = info?.version || '新版本';
                     showNotification('更新可用', `发现新版本 ${version}，请点击检查更新按钮下载`, {
                         tag: 'update-available',
                         urgency: 'normal'
                     });
+=======
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                 });
 
                 window.electronAPI.onUpdateNotAvailable((info) => {
@@ -473,12 +542,15 @@ export default {
                     updateState.value.downloaded = true;
                     updateState.value.info = info || updateState.value.info;
                     // 不再自动弹出对话框，由用户手动点击安装
+<<<<<<< HEAD
                     // 发送通知
                     const version = info?.version || '新版本';
                     showNotification('更新下载完成', `版本 ${version} 已下载完成，请点击安装按钮完成更新`, {
                         tag: 'update-downloaded',
                         urgency: 'normal'
                     });
+=======
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                 });
             } catch (e) {
                 // 可忽略监听安装异常
@@ -492,12 +564,26 @@ export default {
             }
             updateState.value.checking = true;
             updateState.value.available = false;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
             updateState.value.downloaded = false;
             updateState.value.error = null; // 清除之前的错误
             updateState.value.isLatest = false; // 清除之前的"已是最新"状态
             
             console.log('[SlidePanel] 开始检查更新...');
             
+<<<<<<< HEAD
+=======
+=======
+        updateState.value.downloaded = false;
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+        updateState.value.downloaded = false;
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
             try {
                 const r = await window.electronAPI.checkForUpdates();
                 console.log('[SlidePanel] checkForUpdates 返回:', r);
@@ -525,6 +611,11 @@ export default {
         if (!window.electronAPI) return;
         updateState.value.downloading = true;
         updateState.value.downloaded = false;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         updateState.value.error = null; // 清除之前的错误
         
         try {
@@ -584,6 +675,20 @@ export default {
             const errorMsg = String(e);
             updateState.value.error = errorMsg;
             showMsg('重新下载失败：' + errorMsg);
+<<<<<<< HEAD
+=======
+=======
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+        const r = await window.electronAPI.downloadUpdate();
+        if (!r || !r.ok) {
+            updateState.value.downloading = false;
+            showMsg('下载失败：' + (r && r.error ? r.error : '未知错误'));
+<<<<<<< HEAD
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         }
     }
 
@@ -608,6 +713,11 @@ export default {
         }
     }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
     async function openGitHubReleases() {
         const url = 'https://github.com/tanzhouxkong/Metro-PIDS-/releases';
         try {
@@ -624,6 +734,13 @@ export default {
         }
     }
 
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
     // 显示端/第三方相关辅助（展示预览已移除）
 
     // 自动播放包装：先锁定界面并提示
@@ -884,6 +1001,11 @@ export default {
             pidsState,
             switchLine, switchLineByName, newLine, delLine, saveCfg, clearShortTurn, applyShortTurn,
             settings, saveSettings, keyMapDisplay, recordKey, clearKey, resetKeys,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
             updateState, checkForUpdateClicked, downloadUpdateNow, clearCacheAndRedownload, installDownloadedUpdate, skipThisVersion, openGitHubReleases,
             version, hasElectronAPI, pickColor, openColorPicker,
             showColorPicker, colorPickerInitialColor, onColorConfirm,
@@ -892,6 +1014,7 @@ export default {
             showReleaseNotes, releaseNotes, loadingNotes, openReleaseNotes, closeReleaseNotes, formatReleaseBody,
             shortTurnPresets, loadShortTurnPresets, saveShortTurnPreset, loadShortTurnPreset, deleteShortTurnPreset,
             openLineManagerWindow
+<<<<<<< HEAD
         },
         onUnmounted() {
             // 清理分辨率缩放监听
@@ -899,6 +1022,19 @@ export default {
                 clearInterval(scaleCheckInterval);
                 scaleCheckInterval = null;
             }
+=======
+=======
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+            updateState, checkForUpdateClicked, downloadUpdateNow, installDownloadedUpdate, skipThisVersion,
+            version,
+            startWithLock, stopWithUnlock, startRecordingWithCheck,
+            changeServiceMode, serviceModeLabel
+<<<<<<< HEAD
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         }
     },
   template: `
@@ -938,6 +1074,15 @@ export default {
             <div style="margin-bottom:12px; padding:12px; background:var(--card); border-radius:8px; border:2px solid var(--divider);">
                 <div style="font-size:14px; color:var(--muted); margin-bottom:4px;">当前线路</div>
                 <div style="font-size:18px; font-weight:bold; color:var(--text);">{{ pidsState.appData?.meta?.lineName || '未选择' }}</div>
+<<<<<<< HEAD
+=======
+            </div>
+            
+            <div style="display:flex; gap:12px;">
+                <button class="btn" style="flex:1; background:#FF9F43; color:white; border:none; border-radius:6px; padding:12px; font-weight:bold; font-size:14px;" @click="openLineManagerWindow()">
+                    <i class="fas fa-folder-open"></i> 打开管理器
+                </button>
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
             </div>
             
             <!-- 线路管理器按钮 -->
@@ -1077,6 +1222,42 @@ export default {
                 <button @click="clearShortTurn()" class="btn" style="background:#CED6E0; color:#2F3542; border:none; padding:6px 16px; border-radius:4px; font-size:13px;">清除</button>
                 <button @click="applyShortTurn()" class="btn" style="background:#FF4757; color:white; border:none; padding:6px 16px; border-radius:4px; font-size:13px;">应用</button>
             </div>
+<<<<<<< HEAD
+=======
+
+            <!-- 短交路预设管理 -->
+            <div style="font-size:13px; color:var(--muted); margin-bottom:12px; font-weight:bold;">预设管理</div>
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+                <button @click="saveShortTurnPreset()" class="btn" style="flex:1; background:#5F27CD; color:white; border:none; padding:8px; border-radius:6px; font-size:13px;">
+                    <i class="fas fa-save"></i> 保存预设
+                </button>
+                <button @click="loadShortTurnPresets()" class="btn" style="flex:1; background:#00D2D3; color:white; border:none; padding:8px; border-radius:6px; font-size:13px;">
+                    <i class="fas fa-sync-alt"></i> 刷新
+                </button>
+            </div>
+            <div v-if="shortTurnPresets.length > 0" style="max-height:200px; overflow-y:auto; border:1px solid var(--divider); border-radius:6px; padding:8px; margin-bottom:12px;">
+                <div v-for="preset in shortTurnPresets" :key="preset.name" style="display:flex; align-items:center; justify-content:space-between; padding:8px; margin-bottom:4px; background:var(--card); border-radius:4px;">
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-size:13px; font-weight:bold; color:var(--text); margin-bottom:2px;">{{ preset.name }}</div>
+                        <div style="font-size:11px; color:var(--muted);">
+                            {{ preset.startStationName || ('站点' + (preset.startIdx + 1)) }} → {{ preset.termStationName || ('站点' + (preset.termIdx + 1)) }}
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <button @click="loadShortTurnPreset(preset.name)" class="btn" style="background:#2ED573; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px;" title="加载">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button @click="deleteShortTurnPreset(preset.name)" class="btn" style="background:#FF6B6B; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px;" title="删除">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div v-else style="padding:12px; text-align:center; color:var(--muted); font-size:12px; border:1px dashed var(--divider); border-radius:6px; margin-bottom:12px;">
+                暂无预设，点击"保存预设"保存当前短交路设置
+            </div>
+        </div>
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
 
             <!-- 短交路预设管理 -->
             <div style="font-size:13px; color:var(--muted); margin-bottom:12px; font-weight:bold;">预设管理</div>
@@ -1166,6 +1347,21 @@ export default {
             <!-- 深色模式变体 已移除 -->
         </div>
 
+        <!-- Service Mode Quick Switch -->
+        <div class="card" style="border-left: 6px solid #ff9f43; border-radius:12px; padding:16px; margin-bottom:20px; background:var(--bg); box-shadow:0 2px 12px rgba(0,0,0,0.05);">
+            <div style="color:#ff9f43; font-weight:bold; margin-bottom:12px; font-size:15px;">运营模式</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn" :class="{active: pidsState.appData.meta.serviceMode==='normal'}" style="padding:10px 12px; border-radius:6px; border:1px solid var(--divider); background: pidsState.appData.meta.serviceMode==='normal' ? 'var(--btn-blue-bg)' : 'var(--card)'; color: pidsState.appData.meta.serviceMode==='normal' ? '#fff' : 'var(--text)';" @click="changeServiceMode('normal')">普通</button>
+                <button class="btn" :class="{active: pidsState.appData.meta.serviceMode==='express'}" style="padding:10px 12px; border-radius:6px; border:1px solid var(--divider); background: pidsState.appData.meta.serviceMode==='express' ? '#ffa502' : 'var(--card)'; color: pidsState.appData.meta.serviceMode==='express' ? '#fff' : 'var(--text)';" @click="changeServiceMode('express')">大站车</button>
+                <button class="btn" :class="{active: pidsState.appData.meta.serviceMode==='direct'}" style="padding:10px 12px; border-radius:6px; border:1px solid var(--divider); background: pidsState.appData.meta.serviceMode==='direct' ? '#ff4757' : 'var(--card)'; color: pidsState.appData.meta.serviceMode==='direct' ? '#fff' : 'var(--text)';" @click="changeServiceMode('direct')">直达</button>
+            </div>
+            <div style="font-size:12px; color:var(--muted); margin-top:10px; line-height:1.5;">
+                普通：全停<br/>
+                大站车：仅停首末站与换乘站<br/>
+                直达：仅停首末站
+            </div>
+        </div>
+
         <!-- Keybindings -->
         <div class="card" style="border-left: 6px solid #1E90FF; border-radius:12px; padding:16px; margin-bottom:20px; background:var(--bg); box-shadow:0 2px 12px rgba(0,0,0,0.05);">
             <div style="color:#1E90FF; font-weight:bold; margin-bottom:16px; font-size:15px;">快捷键 (Keybindings)</div>
@@ -1202,12 +1398,29 @@ export default {
                 <div style="font-size:14px; color:var(--text);">当前版本</div>
                 <div style="font-weight:bold; color:var(--muted);">{{ version }}</div>
             </div>
+<<<<<<< HEAD
             <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+            <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+=======
+            <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px;">
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+            <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px;">
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                 <button class="btn" style="flex:0 0 auto; background:#2d98da; color:white; padding:8px 12px; border-radius:6px; border:none;" @click="checkForUpdateClicked()">检查更新</button>
                 <button class="btn" style="flex:0 0 auto; background:#95a5a6; color:white; padding:8px 12px; border-radius:6px; border:none;" @click="openReleaseNotes()">
                     <i class="fas fa-list-alt"></i> 查看日志
                 </button>
                 <div v-if="updateState.checking" style="font-size:12px; color:var(--muted);">检查中...</div>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                 <div v-else-if="updateState.error" style="font-size:12px; color:#e74c3c;">错误：{{ updateState.error }}</div>
                 <div v-else-if="updateState.isLatest" style="font-size:12px; color:#2ed573;">✓ 当前已是最新版本</div>
                 <div v-else-if="updateState.available && !updateState.downloading && !updateState.downloaded" style="font-size:12px; color:#4b7bec;">发现新版本 {{ (updateState.info && updateState.info.version) ? updateState.info.version : '' }}</div>
@@ -1218,17 +1431,42 @@ export default {
                         <i class="fas fa-sync-alt" style="animation:spin 1s linear infinite;"></i> 自动重试中...
                     </span>
                 </div>
+<<<<<<< HEAD
+=======
+=======
+                <div v-else-if="updateState.available && !updateState.downloading && !updateState.downloaded" style="font-size:12px; color:#4b7bec;">发现新版本 {{ (updateState.info && updateState.info.version) ? updateState.info.version : '' }}</div>
+                <div v-else-if="updateState.downloaded" style="font-size:12px; color:#2ed573;">更新包已下载</div>
+                <div v-else-if="updateState.downloading" style="font-size:12px; color:var(--muted);">下载中 {{ updateState.progress }}%</div>
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+                <div v-else-if="updateState.available && !updateState.downloading && !updateState.downloaded" style="font-size:12px; color:#4b7bec;">发现新版本 {{ (updateState.info && updateState.info.version) ? updateState.info.version : '' }}</div>
+                <div v-else-if="updateState.downloaded" style="font-size:12px; color:#2ed573;">更新包已下载</div>
+                <div v-else-if="updateState.downloading" style="font-size:12px; color:var(--muted);">下载中 {{ updateState.progress }}%</div>
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
             </div>
             <div v-if="updateState.available && !updateState.downloaded" style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
                 <button class="btn" style="background:#3867d6; color:white; padding:8px 12px; border-radius:6px; border:none;" @click="downloadUpdateNow()" :disabled="updateState.downloading">
                     <i class="fas fa-download"></i> 下载更新
                 </button>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                 <button v-if="updateState.error && (updateState.error.includes('checksum') || updateState.error.includes('sha512'))" class="btn" style="background:#ffa502; color:white; padding:8px 12px; border-radius:6px; border:none;" @click="clearCacheAndRedownload()" :disabled="updateState.downloading">
                     <i class="fas fa-redo"></i> 清除缓存并重新下载
                 </button>
                 <button class="btn" style="background:#2ecc71; color:white; padding:8px 12px; border-radius:6px; border:none;" @click="openGitHubReleases()" title="如果自动下载失败，可以从GitHub手动下载">
                     <i class="fab fa-github"></i> 从GitHub手动下载
                 </button>
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
                 <button class="btn" style="background:#95a5a6; color:white; padding:8px 12px; border-radius:6px; border:none;" @click="skipThisVersion()" :disabled="updateState.downloading">
                     <i class="fas fa-times"></i> 跳过此版本
                 </button>

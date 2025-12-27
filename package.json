@@ -1,6 +1,18 @@
 {
   "name": "metro-pids",
+<<<<<<< HEAD
   "version": "1.4.1",
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+  "version": "1.4.0",
+=======
+  "version": "1.3.2",
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+  "version": "1.3.2",
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
   "description": "Metro-PIDS ",
   "author": "",
   "repository": {
@@ -32,6 +44,16 @@
     },
     "publish": [
       {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+        "provider": "generic",
+        "url": "https://gitee.com/tanzhouxkong/Metro-PIDS-/raw/main/releases/"
+      },
+      {
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         "provider": "github",
         "owner": "tanzhouxkong",
         "repo": "Metro-PIDS-",
@@ -53,10 +75,32 @@
       "icon": "build/icon.ico",
       "publish": [
         {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
           "provider": "github",
           "owner": "tanzhouxkong",
           "repo": "Metro-PIDS-",
           "vPrefixedTagName": true
+<<<<<<< HEAD
+=======
+=======
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+          "provider": "generic",
+          "url": "https://gitee.com/tanzhouxkong/Metro-PIDS-/raw/main/releases/win32/"
+        },
+        {
+          "provider": "github",
+          "owner": "tanzhouxkong",
+          "repo": "Metro-PIDS-"
+<<<<<<< HEAD
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         }
       ]
     },
@@ -65,10 +109,32 @@
       "icon": "build/icon.icns",
       "publish": [
         {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
           "provider": "github",
           "owner": "tanzhouxkong",
           "repo": "Metro-PIDS-",
           "vPrefixedTagName": true
+<<<<<<< HEAD
+=======
+=======
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+          "provider": "generic",
+          "url": "https://gitee.com/tanzhouxkong/Metro-PIDS-/raw/main/releases/mac/"
+        },
+        {
+          "provider": "github",
+          "owner": "tanzhouxkong",
+          "repo": "Metro-PIDS-"
+<<<<<<< HEAD
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         }
       ]
     },
@@ -77,10 +143,32 @@
       "icon": "build/icon.png",
       "publish": [
         {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
           "provider": "github",
           "owner": "tanzhouxkong",
           "repo": "Metro-PIDS-",
           "vPrefixedTagName": true
+<<<<<<< HEAD
+=======
+=======
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+          "provider": "generic",
+          "url": "https://gitee.com/tanzhouxkong/Metro-PIDS-/raw/main/releases/linux/"
+        },
+        {
+          "provider": "github",
+          "owner": "tanzhouxkong",
+          "repo": "Metro-PIDS-"
+<<<<<<< HEAD
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+=======
+>>>>>>> 94bf6b56baffc7780e58c8bf5bfd1580152e6dfc
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
         }
       ]
     }

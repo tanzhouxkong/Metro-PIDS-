@@ -3,6 +3,7 @@ import FolderLineManagerWindow from './components/FolderLineManagerWindow.js'
 import LineManagerTopbar from './components/LineManagerTopbar.js'
 import LineManagerDialog from './components/LineManagerDialog.js'
 
+<<<<<<< HEAD
 // 应用主题模式（从localStorage读取设置）
 function applyThemeMode() {
     try {
@@ -50,6 +51,8 @@ function applyThemeMode() {
 // 初始化时应用主题
 applyThemeMode();
 
+=======
+>>>>>>> e74a48ee787cba03260e0ae757403bc6aaf5a055
 const app = createApp(FolderLineManagerWindow)
 // 全局注册组件以确保可用
 app.component('LineManagerTopbar', LineManagerTopbar)

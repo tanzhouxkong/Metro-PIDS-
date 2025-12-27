@@ -35,6 +35,9 @@ npm run build
 # 或者
 npm start
 ```
+```
+npx electron-builder --publish=always --win
+```
 
 ### 发布到 GitHub Releases
 
