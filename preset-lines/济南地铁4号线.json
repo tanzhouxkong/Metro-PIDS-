@@ -6,7 +6,7 @@
     "dirType": "up",
     "startIdx": -1,
     "termIdx": -1,
-    "version": 1,
+    "version": 2,
     "serviceMode": "normal"
   },
   "stations": [
@@ -33,20 +33,11 @@
     {
       "name": "济南西站西广场",
       "en": "Jinan West Railway Station West Square",
-      "xfer": [
-        {
-          "line": "1号线",
-          "color": "#B73F91"
-        },
-        {
-          "line": "6号线",
-          "color": "#2ABAEE"
-        }
-      ],
-      "door": "left",
       "skip": false,
+      "door": "left",
       "dock": "both",
-      "turnback": false,
+      "turnback": "none",
+      "xfer": [],
       "expressStop": false
     },
     {
