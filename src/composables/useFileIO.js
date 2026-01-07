@@ -380,20 +380,19 @@ export function useFileIO(state) {
     }
 
     // 初始化预设线路文件（仅在文件不存在时创建，或文件内容不同时更新）
-    async function initDefaultLines() {
+    // forceRestore: 当为 true 时，即使当前 state 为空也会从预设文件或默认常量写入
+    async function initDefaultLines(forceRestore = false) {
         if (!(window.electronAPI && window.electronAPI.lines && window.electronAPI.lines.folders)) {
             return; // 非 Electron 环境，跳过
         }
         
         try {
-            // 使用"预设"文件夹（如果不存在则使用"默认"）
-            let presetFolderId = null;
+            // 固定写入到“默认”文件夹（若不存在则回退到第一个可用文件夹）
+            let presetFolderId = 'default';
             const folders = await window.electronAPI.lines.folders.list();
             if (folders && folders.ok && folders.folders) {
-                // 优先查找"预设"文件夹
-                const presetFolder = folders.folders.find(f => f.name === '预设');
-                // 如果找到了预设文件夹，使用它；否则使用"默认"文件夹
-                presetFolderId = presetFolder ? presetFolder.id : (folders.folders.find(f => f.name === '默认' || f.id === 'default')?.id || 'default');
+                const defaultFolder = folders.folders.find(f => f.name === '默认' || f.id === 'default') || folders.folders[0];
+                presetFolderId = defaultFolder ? defaultFolder.id : 'default';
             } else {
                 presetFolderId = 'default';
             }
@@ -413,6 +412,7 @@ export function useFileIO(state) {
                 '济南地铁4、8号线贯通车': '济南地铁4、8号线贯通车.json',
                 '高新云巴': '高新云巴.json'
             };
+            const presetFilenames = Object.values(lineNameToFilename);
             
             // 优先从 state.store.list 获取（如果可用）
             if (state && state.store && state.store.list && state.store.list.length > 0) {
@@ -425,6 +425,21 @@ export function useFileIO(state) {
                         if (filename) {
                             defaultLines.push({ data: line, filename });
                         }
+                    }
+                }
+            }
+            
+            // 其次从应用内置的 /preset-lines 目录读取（保持与打包资源一致）
+            if (defaultLines.length === 0 || forceRestore) {
+                for (const filename of presetFilenames) {
+                    try {
+                        const res = await fetch(`./preset-lines/${encodeURIComponent(filename)}`);
+                        if (res && res.ok) {
+                            const data = await res.json();
+                            defaultLines.push({ data, filename });
+                        }
+                    } catch (e) {
+                        console.warn(`读取预设线路文件 ${filename} 失败:`, e);
                     }
                 }
             }
