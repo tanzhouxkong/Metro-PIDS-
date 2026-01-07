@@ -99,6 +99,12 @@
             --surface-tertiary: rgba(44, 44, 46, 0.82);  /* Tertiary: R44 G44 B46 */
         }
 
+        /* 关闭高斯模糊时的全局覆盖 */
+        html.blur-disabled *, html.blur-disabled *::before, html.blur-disabled *::after {
+            -webkit-backdrop-filter: none !important;
+            backdrop-filter: none !important;
+        }
+
         /* ================= Base Styles ================= */
         * {
             box-sizing: border-box;

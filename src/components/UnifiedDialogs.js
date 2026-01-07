@@ -4,6 +4,7 @@ export default {
   methods: {
     applyDialogBlur(state) {
       if (typeof window === 'undefined') return;
+      if (typeof document !== 'undefined' && document.documentElement.classList.contains('blur-disabled')) return;
       const blurApi = window.electronAPI && window.electronAPI.effects && window.electronAPI.effects.setDialogBlur;
       if (typeof blurApi === 'function') blurApi(!!state);
     },

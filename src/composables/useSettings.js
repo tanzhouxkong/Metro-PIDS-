@@ -5,6 +5,22 @@ const settings = reactive({ ...DEFAULT_SETTINGS })
 
 export function useSettings() {
     
+    function applyBlurSetting() {
+        if (typeof document === 'undefined') return;
+        const root = document.documentElement;
+        const enabled = settings.blurEnabled !== false;
+        root.classList.toggle('blur-disabled', !enabled);
+        // 尝试同步到原生窗口效果（如有暴露的 API）
+        try {
+            const blurApi = typeof window !== 'undefined' && window.electronAPI && window.electronAPI.effects && window.electronAPI.effects.setDialogBlur;
+            if (typeof blurApi === 'function') {
+                blurApi(enabled);
+            }
+        } catch (e) {
+            // 忽略同步失败
+        }
+    }
+
     function loadSettings() {
         try {
             const s = JSON.parse(localStorage.getItem('pids_settings_v1') || 'null');
@@ -99,16 +115,21 @@ export function useSettings() {
                 
                 // 兼容旧数据，补 serviceMode
                 if (settings.meta && settings.meta.serviceMode === undefined) settings.meta.serviceMode = 'normal';
+                
+                // 兼容旧数据：补齐模糊开关
+                if (settings.blurEnabled === undefined) settings.blurEnabled = DEFAULT_SETTINGS.blurEnabled;
             }
         } catch (e) { 
             console.warn('Failed to load settings', e);
         }
         applyThemeMode();
+        applyBlurSetting();
     }
 
     function saveSettings() {
         localStorage.setItem('pids_settings_v1', JSON.stringify(settings));
         applyThemeMode();
+        applyBlurSetting();
     }
 
     function applyThemeMode() {
@@ -149,6 +170,7 @@ export function useSettings() {
         settings,
         loadSettings,
         saveSettings,
-        applyThemeMode
+        applyThemeMode,
+        applyBlurSetting
     }
 }

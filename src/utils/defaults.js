@@ -178,6 +178,7 @@ export const DEFAULT_SETTINGS = {
     dark: false, 
     themeMode: "system", 
     darkVariant: "soft", 
+    blurEnabled: true,
     keys: { arrdep: "Enter", prev: "ArrowLeft", next: "ArrowRight" }, 
     autoplay: { enabled: false, intervalSec: 8, key: "Space" },
     display: { 
