@@ -378,21 +378,19 @@ export default {
                     console.log('[LeftRail] isPackaged API 不可用，假设为打包环境');
                 }
                 
-                // 打包环境：只检查 localStorage 中是否有开发者按钮的标记
-                // 必须明确设置为 'true' 才显示，其他情况一律隐藏
+                // 打包环境：完全隐藏开发者按钮
+                // 打包环境中不应该显示开发者按钮，即使用户之前设置过标记
                 if (isPackaged) {
-                    shouldShowDevButton.value = false; // 默认隐藏
+                    shouldShowDevButton.value = false; // 打包环境强制隐藏
+                    console.log('[LeftRail] 打包环境，强制隐藏开发者按钮（忽略 localStorage 中的标记）');
+                    // 清除 localStorage 中的标记，确保不会意外显示
                     if (typeof window !== 'undefined' && window.localStorage) {
-                        const devButtonEnabled = localStorage.getItem('metro_pids_dev_button_enabled');
-                        console.log('[LeftRail] localStorage 中的 metro_pids_dev_button_enabled:', devButtonEnabled);
-                        if (devButtonEnabled === 'true') {
-                            shouldShowDevButton.value = true;
-                            console.log('[LeftRail] ✅ 从 localStorage 读取到开发者按钮已启用');
-                        } else {
-                            console.log('[LeftRail] 打包环境且 localStorage 中没有开发者按钮标记，默认隐藏');
+                        try {
+                            localStorage.removeItem('metro_pids_dev_button_enabled');
+                            console.log('[LeftRail] 已清除打包环境中的开发者按钮标记');
+                        } catch (e) {
+                            console.warn('[LeftRail] 清除 localStorage 标记失败:', e);
                         }
-                    } else {
-                        console.log('[LeftRail] localStorage 不可用，打包环境默认隐藏');
                     }
                 }
                 
@@ -409,33 +407,51 @@ export default {
             if (typeof window === 'undefined' || !window.addEventListener) return;
             
             // 监听 storage 事件（跨标签页/窗口）
-            window.addEventListener('storage', (e) => {
+            window.addEventListener('storage', async (e) => {
                 if (e.key === 'metro_pids_dev_button_enabled' && e.newValue === 'true') {
-                    shouldShowDevButton.value = true;
-                    console.log('[LeftRail] 通过 storage 事件检测到开发者按钮已启用');
+                    // 只有在打包环境中才响应这个事件（开发环境应该始终显示）
+                    try {
+                        let isPackaged = true;
+                        if (window.electronAPI && typeof window.electronAPI.isPackaged === 'function') {
+                            isPackaged = await window.electronAPI.isPackaged();
+                        }
+                        if (isPackaged) {
+                            shouldShowDevButton.value = true;
+                            console.log('[LeftRail] 通过 storage 事件检测到开发者按钮已启用（打包环境）');
+                        }
+                    } catch (err) {
+                        console.error('[LeftRail] 检查打包状态失败:', err);
+                    }
                 }
             });
             
-            // 定期检查 localStorage（因为 BrowserView 可能无法接收 storage 事件）
-            const checkInterval = setInterval(() => {
+            // 定期检查（仅用于开发环境，打包环境不检查）
+            const checkInterval = setInterval(async () => {
                 if (typeof window !== 'undefined' && window.localStorage) {
-                    const devButtonEnabled = localStorage.getItem('metro_pids_dev_button_enabled');
-                    // 只有在打包环境下才检查 localStorage
-                    // 开发环境下应该始终显示，不需要检查
-                    if (devButtonEnabled === 'true') {
-                        if (!shouldShowDevButton.value) {
-                            shouldShowDevButton.value = true;
-                            console.log('[LeftRail] 通过定期检查检测到开发者按钮已启用');
+                    // 先检查是否是打包环境
+                    let isPackaged = true;
+                    try {
+                        if (window.electronAPI && typeof window.electronAPI.isPackaged === 'function') {
+                            isPackaged = await window.electronAPI.isPackaged();
                         }
-                    } else {
-                        // 如果 localStorage 中没有标记，且当前是显示状态，需要重新检查环境
-                        // 但这里只处理打包环境的情况，开发环境应该始终显示
-                        // 为了避免频繁检查，这里只处理从 true 变为 false 的情况
+                    } catch (e) {
+                        console.error('[LeftRail] 检查打包状态失败:', e);
+                    }
+                    
+                    // 打包环境：强制隐藏，不检查 localStorage
+                    if (isPackaged) {
                         if (shouldShowDevButton.value) {
-                            // 重新检查一次，确保状态正确
-                            checkDevButtonVisibility();
+                            shouldShowDevButton.value = false;
+                            console.log('[LeftRail] 打包环境，强制隐藏开发者按钮');
+                        }
+                        // 清除可能存在的标记
+                        if (localStorage.getItem('metro_pids_dev_button_enabled') === 'true') {
+                            try {
+                                localStorage.removeItem('metro_pids_dev_button_enabled');
+                            } catch (e) {}
                         }
                     }
+                    // 开发环境下，shouldShowDevButton 已经在 checkDevButtonVisibility 中设置为 true，不需要额外检查
                 }
             }, 500); // 每500ms检查一次
             

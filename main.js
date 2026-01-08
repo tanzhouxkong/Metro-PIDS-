@@ -17,11 +17,17 @@ try {
   console.warn('[main] 配置 GPU 开关失败:', e);
 }
 
-// 关闭主进程的冗余日志（保留 warn/error）
-const ENABLE_MAIN_VERBOSE_LOG = false;
+// 启用主进程日志输出（打包后也需要日志来调试）
+const ENABLE_MAIN_VERBOSE_LOG = true; // 改为 true，确保打包后也能看到日志
 const __MAIN_ORIGINAL_LOG = console.log;
 console.log = (...args) => {
   if (ENABLE_MAIN_VERBOSE_LOG) __MAIN_ORIGINAL_LOG(...args);
+  // 同时也输出到 logger（如果可用）
+  if (logger) {
+    try {
+      logger.info(...args);
+    } catch (e) {}
+  }
 };
 
 // 引入 mica-electron 用于 Windows 11 Mica 效果
@@ -49,6 +55,14 @@ try {
   logger = require('electron-log');
   Store = require('electron-store');
   store = new Store();
+  
+  // 配置 logger 输出到文件和控制台
+  if (logger) {
+    logger.transports.console.level = 'debug';
+    logger.transports.file.level = 'debug';
+    logger.transports.file.maxSize = 10 * 1024 * 1024; // 10MB
+    console.log('[main] 日志文件位置:', logger.transports.file.getFile().path);
+  }
 } catch (e) {
   console.warn('electron-log or electron-store not available:', e);
 }
@@ -113,6 +127,38 @@ let browserViews = new Map(); // key: viewId, value: { view: BrowserView, bounds
 // 判断是否为开发环境（electron-vite 在开发时会注入 ELECTRON_RENDERER_URL 或 VITE_DEV_SERVER_URL）
 const isDev = !app.isPackaged || !!process.env.ELECTRON_RENDERER_URL || !!process.env.VITE_DEV_SERVER_URL;
 
+// 添加全局错误处理，捕获未处理的异常
+process.on('uncaughtException', (error) => {
+  console.error('[main] 未捕获的异常:', error);
+  console.error('[main] 错误堆栈:', error.stack);
+  // 同时记录到 logger
+  if (logger) {
+    try {
+      logger.error('未捕获的异常', error);
+    } catch (e) {}
+  }
+  // 不要立即退出，给应用一个机会记录错误或显示错误对话框
+  // 如果窗口存在，确保它显示出来
+  if (mainWin && !mainWin.isDestroyed() && !mainWin.isVisible()) {
+    try {
+      mainWin.show();
+    } catch (e) {}
+  }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[main] 未处理的 Promise 拒绝:', reason);
+  if (reason instanceof Error) {
+    console.error('[main] 错误堆栈:', reason.stack);
+  }
+  // 同时记录到 logger
+  if (logger) {
+    try {
+      logger.error('未处理的 Promise 拒绝', reason);
+    } catch (e) {}
+  }
+});
+
 // 获取 preload 脚本路径：
 // - 开发模式：electron-vite 会自动处理，使用 dist/main/preload.js（热重载支持）
 // - 生产/打包后：使用与 main 同目录下的 preload.js
@@ -150,8 +196,48 @@ function getRendererUrl(htmlRelativePath) {
   }
   
   // 生产环境：使用打包后的静态文件
-  const resolved = path.join(__dirname, '../renderer', basePath);
-  return `file://${resolved}`;
+  // 打包后，__dirname 指向 app.asar/out/main（如果在 asar 中）或 out/main（如果解压）
+  // 渲染进程文件在 out/renderer 目录下
+  // 在 asar 中，路径应该是：app.asar/out/renderer/index.html
+  // app.getAppPath() 返回 app.asar 的路径（如果使用 asar）
+  let resolved;
+  
+  if (app.isPackaged) {
+    // 打包后：app.getAppPath() 返回 app.asar 的路径
+    const appPath = app.getAppPath();
+    // app.asar/out/renderer/index.html
+    resolved = path.join(appPath, 'out/renderer', basePath);
+    console.log(`[getRendererUrl] 打包模式 - appPath: ${appPath}, resolved: ${resolved}`);
+  } else {
+    // 开发环境：__dirname 指向 out/main
+    resolved = path.join(__dirname, '../renderer', basePath);
+    console.log(`[getRendererUrl] 开发模式 - __dirname: ${__dirname}, resolved: ${resolved}`);
+  }
+  
+  // 验证文件是否存在（注意：在 asar 中，fs.existsSync 可以检查 asar 内的文件）
+  try {
+    if (!fs.existsSync(resolved)) {
+      console.warn(`[getRendererUrl] ⚠️ 文件不存在: ${resolved}`);
+      console.warn(`[getRendererUrl] __dirname: ${__dirname}`);
+      if (app.isPackaged) {
+        console.warn(`[getRendererUrl] app.getAppPath(): ${app.getAppPath()}`);
+        // 尝试备用路径
+        const altPath = path.join(__dirname, '../renderer', basePath);
+        if (fs.existsSync(altPath)) {
+          console.log(`[getRendererUrl] 使用备用路径: ${altPath}`);
+          resolved = altPath;
+        }
+      }
+    } else {
+      console.log(`[getRendererUrl] ✅ 文件存在: ${resolved}`);
+    }
+  } catch (e) {
+    console.error(`[getRendererUrl] 检查文件存在性时出错:`, e);
+  }
+  
+  // 转换为 file:// URL 格式（Windows 需要特殊处理）
+  const fileUrl = `file://${resolved.replace(/\\/g, '/')}`;
+  return fileUrl;
 }
 
 // 重新应用 Mica 效果的辅助函数
@@ -191,6 +277,7 @@ function reapplyMicaEffect() {
 }
 
 function createWindow() {
+  console.log('[MainWindow] ===== 开始创建窗口 =====');
   // 尝试加载 mica-electron（需要在 app 初始化后）
   // 按照官方示例使用解构导入
   if (MicaBrowserWindow === BrowserWindow) {
@@ -235,18 +322,26 @@ function createWindow() {
   
   // Linux 不支持自定义标题栏，使用系统默认标题栏
   if (isLinux) {
+    console.log('[MainWindow] 创建 Linux 窗口');
     mainWin = new BrowserWindow({
       width: 1280,
       height: 800,
       frame: true, // Linux 使用系统框架
       transparent: false,
       resizable: true,
+      show: true, // 立即显示
       webPreferences: {
         preload: getPreloadPath(),
         nodeIntegration: false,
         contextIsolation: true
       }
     });
+    console.log('[MainWindow] Linux 窗口已创建:', mainWin !== null);
+    if (mainWin) {
+      mainWin.show();
+      mainWin.center();
+      console.log('[MainWindow] Linux 窗口已显示');
+    }
   } else {
     // Windows 和 MacOS 使用自定义标题栏，启用透明以支持毛玻璃效果（透到桌面）
     // 使用 MicaBrowserWindow（如果可用）以获得更好的 Mica 效果支持
@@ -273,7 +368,7 @@ function createWindow() {
       resizable: true,
       backgroundColor: '#00000000', // 完全透明的背景色（使用黑色透明，确保 Mica 效果可见）
       hasShadow: true, // 启用窗口阴影
-      show: false, // 按照官方示例：先不显示，等 dom-ready 后再显示
+      show: true, // 立即显示窗口，避免页面加载失败导致窗口不显示
       // 隐藏默认标题栏，但保留系统窗口控制按钮
       titleBarStyle: 'hidden',
       // 显示系统自带窗口控制按钮
@@ -288,6 +383,9 @@ function createWindow() {
         contextIsolation: true
       }
     });
+    
+    console.log('[MainWindow] 窗口对象已创建:', mainWin !== null);
+    console.log('[MainWindow] 窗口是否可见:', mainWin && mainWin.isVisible());
     
     // 按照官方示例：窗口创建后立即设置主题和效果
     if (isWindows && mainWin && MicaBrowserWindow !== BrowserWindow) {
@@ -319,22 +417,33 @@ function createWindow() {
       }
     }
     
-    // 按照官方示例：在 dom-ready 时显示窗口
-    mainWin.webContents.once('dom-ready', () => {
-      // 显示前先居中到当前主显示器中间
+    // 窗口创建后立即居中（因为 show: true，窗口会立即显示）
+    mainWin.once('ready-to-show', () => {
       try {
         if (mainWin && !mainWin.isDestroyed()) {
           mainWin.center();
+          console.log('[MainWindow] ✅ 窗口已显示并居中');
         }
       } catch (e) {
         console.warn('[MainWindow] ⚠️ 居中窗口失败:', e);
       }
-      // 按照官方示例：直接显示窗口，效果已在窗口创建时应用
-      if (mainWin && !mainWin.isDestroyed()) {
-        mainWin.show();
-        console.log('[MainWindow] ✅ 窗口已显示并居中（按照官方示例）');
-      }
     });
+    
+    // 确保窗口可见
+    console.log('[MainWindow] 确保窗口可见 - 主窗口对象:', mainWin !== null);
+    if (mainWin && !mainWin.isDestroyed()) {
+      try {
+        mainWin.show();
+        mainWin.center();
+        mainWin.focus();
+        console.log('[MainWindow] ✅ 窗口已显示、居中并获取焦点');
+        console.log('[MainWindow] 窗口可见性:', mainWin.isVisible());
+      } catch (e) {
+        console.error('[MainWindow] ❌ 显示窗口失败:', e);
+      }
+    } else {
+      console.error('[MainWindow] ❌ 窗口对象无效或已销毁');
+    }
     
     // 处理窗口失焦时的行为，确保保持透明背景
     mainWin.on('blur', () => {
@@ -383,8 +492,93 @@ function createWindow() {
     });
   }
 
+  // 添加页面加载失败的处理（在 loadURL 之前）
+  mainWin.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (isMainFrame) {
+      console.error('[MainWindow] ❌ 主框架页面加载失败:', {
+        errorCode,
+        errorDescription,
+        validatedURL,
+        errorCodeName: getErrorCodeName(errorCode)
+      });
+      
+      // 即使加载失败，也要显示窗口
+      setTimeout(() => {
+        if (mainWin && !mainWin.isDestroyed() && !mainWin.isVisible()) {
+          console.log('[MainWindow] 页面加载失败，但强制显示窗口');
+          try {
+            mainWin.show();
+            mainWin.center();
+            // 注入错误信息到页面
+            mainWin.webContents.executeJavaScript(`
+              document.body.innerHTML = '<div style="padding: 20px; font-family: Arial; line-height: 1.6;">
+                <h2>页面加载失败</h2>
+                <p><strong>错误代码:</strong> ${errorCode} (${getErrorCodeName(errorCode)})</p>
+                <p><strong>错误描述:</strong> ${errorDescription}</p>
+                <p><strong>尝试加载:</strong> ${validatedURL}</p>
+                <p><strong>应用路径:</strong> ${app.getAppPath()}</p>
+                <p><strong>是否打包:</strong> ${app.isPackaged}</p>
+                <p><strong>__dirname:</strong> ${__dirname}</p>
+              </div>';
+            `).catch(e => console.error('[MainWindow] 注入错误信息失败:', e));
+          } catch (e) {
+            console.error('[MainWindow] 显示窗口失败:', e);
+          }
+        }
+      }, 1000);
+    }
+  });
+  
+  // 错误代码名称映射
+  function getErrorCodeName(code) {
+    const codes = {
+      '-3': 'ABORTED',
+      '-2': 'INVALID_ARGUMENT',
+      '-1': 'FAILED',
+      '0': 'OK',
+      '1': 'ABORTED',
+      '2': 'FILE_NOT_FOUND',
+      '3': 'TIMED_OUT',
+      '4': 'FILE_TOO_BIG',
+      '5': 'UNEXPECTED',
+      '6': 'ACCESS_DENIED',
+      '7': 'INVALID_HANDLE',
+      '8': 'FILE_EXISTS',
+      '9': 'FILE_TOO_MANY_OPENED',
+      '10': 'NOT_A_DIRECTORY',
+      '11': 'NOT_A_FILE',
+      '20': 'NETWORK_ACCESS_DENIED',
+      '21': 'NETWORK_FAILED',
+      '22': 'NETWORK_TIMED_OUT'
+    };
+    return codes[code] || 'UNKNOWN';
+  }
+  
   const controlPath = getRendererUrl('index.html');
-  mainWin.loadURL(controlPath);
+  console.log('[MainWindow] 准备加载页面:', controlPath);
+  console.log('[MainWindow] 应用路径:', app.isPackaged ? app.getAppPath() : __dirname);
+  
+  try {
+    mainWin.loadURL(controlPath).catch((error) => {
+      console.error('[MainWindow] ❌ loadURL Promise 拒绝:', error);
+      console.error('[MainWindow] 尝试加载的路径:', controlPath);
+    });
+  } catch (e) {
+    console.error('[MainWindow] ❌ loadURL 调用失败:', e);
+    console.error('[MainWindow] 错误堆栈:', e.stack);
+    // 即使 loadURL 失败，也尝试显示窗口
+    setTimeout(() => {
+      if (mainWin && !mainWin.isDestroyed() && !mainWin.isVisible()) {
+        console.log('[MainWindow] loadURL 异常，强制显示窗口');
+        try {
+          mainWin.show();
+          mainWin.center();
+        } catch (e2) {
+          console.error('[MainWindow] 强制显示窗口也失败:', e2);
+        }
+      }
+    }, 1000);
+  }
   
   // 在页面加载完成后再次确保背景透明并应用 Mica 效果（首次加载）
   mainWin.webContents.once('did-finish-load', () => {
@@ -1299,7 +1493,23 @@ async function ensureDir(dir) {
 async function initPresetLinesFromSource() {
   try {
     // 获取应用目录下的 preset-lines 文件夹路径
-    const presetLinesDir = path.join(__dirname, 'preset-lines');
+    // 打包后使用 app.getAppPath()，开发环境使用 __dirname
+    // asarUnpack 会将 preset-lines 解包到 app.asar.unpacked 中
+    let presetLinesDir;
+    if (app.isPackaged) {
+      // 打包后，优先检查 app.asar.unpacked/preset-lines（解包目录）
+      const appPath = app.getAppPath();
+      const unpackedDir = path.join(path.dirname(appPath), 'app.asar.unpacked', 'preset-lines');
+      if (fs.existsSync(unpackedDir)) {
+        presetLinesDir = unpackedDir;
+      } else {
+        // 如果解包目录不存在，尝试从 asar 中读取
+        presetLinesDir = path.join(appPath, 'preset-lines');
+      }
+    } else {
+      // 开发环境
+      presetLinesDir = path.join(__dirname, 'preset-lines');
+    }
     
     // 检查 preset-lines 文件夹是否存在
     try {
@@ -3159,17 +3369,29 @@ async function checkAndInstallPendingUpdate() {
 }
 
 app.whenReady().then(async () => {
+  console.log('[main] ✅ Electron 应用已准备就绪');
+  console.log('[main] 应用路径:', app.getAppPath());
+  console.log('[main] 是否打包:', app.isPackaged);
+  console.log('[main] __dirname:', __dirname);
+  console.log('[main] 日志文件位置:', logger ? logger.transports.file.getFile().path : 'N/A');
+  
+  // 在 Windows 上，尝试显示控制台窗口以便调试（仅打包后）
+  if (app.isPackaged && process.platform === 'win32') {
+    try {
+      // 尝试附加到父进程的控制台，或创建新的控制台窗口
+      const { exec } = require('child_process');
+      exec('cmd /c "echo 控制台已打开 && pause"', { windowsHide: false });
+    } catch (e) {
+      // 忽略错误
+    }
+  }
+  
   // 初始化预设线路文件（从 preset-lines 复制到默认文件夹）
   try {
     await initPresetLinesFromSource();
   } catch (e) {
     console.warn('[main] 初始化预设线路文件失败:', e);
-  }
-  
-  // 性能优化：延迟加载自动更新模块
-  // 先加载自动更新模块（如果需要检查待安装更新）
-  if (app.isPackaged) {
-    loadAutoUpdater();
+    console.warn('[main] 错误堆栈:', e.stack);
   }
   
   // 在创建窗口之前检查并安装待安装的更新
@@ -3197,7 +3419,43 @@ app.whenReady().then(async () => {
     }
   }
   
-  createWindow();
+  try {
+    createWindow();
+    console.log('[main] ✅ 窗口创建成功');
+    
+    // 确保窗口最终会显示（防止页面加载失败导致窗口永远不显示）
+    setTimeout(() => {
+      if (mainWin && !mainWin.isDestroyed() && !mainWin.isVisible()) {
+        console.warn('[main] ⚠️ 窗口创建后 10 秒仍未显示，强制显示');
+        try {
+          mainWin.show();
+          mainWin.center();
+          mainWin.focus();
+          // 如果页面还是空白，显示错误信息
+          mainWin.webContents.executeJavaScript(`
+            if (!document.body || document.body.innerHTML.trim() === '') {
+              document.body = document.createElement('body');
+              document.body.innerHTML = '<div style="padding: 40px; font-family: Arial; line-height: 1.6;">
+                <h1>应用启动问题</h1>
+                <p>窗口已创建但页面未加载。请查看控制台日志获取详细信息。</p>
+                <p><strong>应用路径:</strong> ${app.getAppPath()}</p>
+                <p><strong>是否打包:</strong> ${app.isPackaged}</p>
+              </div>';
+            }
+          `).catch(e => console.error('[main] 注入错误信息失败:', e));
+        } catch (e) {
+          console.error('[main] 强制显示窗口失败:', e);
+        }
+      }
+    }, 10000); // 10 秒超时
+  } catch (e) {
+    console.error('[main] ❌ 窗口创建失败:', e);
+    console.error('[main] 错误堆栈:', e.stack);
+    // 即使窗口创建失败，也不要立即退出，给用户一个机会看到错误信息
+    if (logger) {
+      logger.error('窗口创建失败', e);
+    }
+  }
   
   // 初始化自动更新（设置完整的事件监听器）
   await initAutoUpdater();
