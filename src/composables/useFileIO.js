@@ -341,13 +341,50 @@ export function useFileIO(state) {
             } catch (e) {
                 console.warn('恢复预设线路文件失败:', e);
             }
-            // 清除本地存储并重新加载
+            // 清除本地存储
             localStorage.removeItem('pids_global_store_v1');
-            // 彻底重启应用，确保主窗口与侧边栏 BrowserView 一并刷新
-            if (window.electronAPI && window.electronAPI.relaunchApp) {
-                await window.electronAPI.relaunchApp();
-            } else {
-            location.reload();
+            
+            // 重新加载默认线路数据（不重启应用）
+            try {
+                // 从预设线路文件夹重新加载线路列表
+                await refreshLinesFromFolder(true);
+                
+                // 如果刷新后没有线路，尝试从默认常量初始化
+                if (!state.store.list || state.store.list.length === 0) {
+                    // 导入默认常量
+                    const { DEF, DEF_LINE_16, DEF_JINAN_BUS, DEF_JINAN_METRO_1, DEF_JINAN_METRO_2, DEF_JINAN_METRO_3, DEF_JINAN_METRO_4, DEF_JINAN_METRO_6, DEF_JINAN_METRO_8, DEF_JINAN_METRO_4_8, DEF_JINAN_YUNBA } = await import('../utils/defaults.js');
+                    // 重置 state
+                    state.store.list = [
+                        JSON.parse(JSON.stringify(DEF)),
+                        JSON.parse(JSON.stringify(DEF_LINE_16)),
+                        JSON.parse(JSON.stringify(DEF_JINAN_BUS)),
+                        JSON.parse(JSON.stringify(DEF_JINAN_METRO_1)),
+                        JSON.parse(JSON.stringify(DEF_JINAN_METRO_2)),
+                        JSON.parse(JSON.stringify(DEF_JINAN_METRO_3)),
+                        JSON.parse(JSON.stringify(DEF_JINAN_METRO_4)),
+                        JSON.parse(JSON.stringify(DEF_JINAN_METRO_6)),
+                        JSON.parse(JSON.stringify(DEF_JINAN_METRO_8)),
+                        JSON.parse(JSON.stringify(DEF_JINAN_METRO_4_8)),
+                        JSON.parse(JSON.stringify(DEF_JINAN_YUNBA))
+                    ];
+                    state.store.cur = 0;
+                    state.appData = state.store.list[0] || null;
+                }
+                
+                // 重置运行时状态
+                state.rt = { idx: 0, state: 0 };
+                state.currentFilePath = null;
+                state.lineNameToFilePath = {};
+                
+                // 触发同步更新
+                if (typeof window.sync === 'function') {
+                    window.sync();
+                }
+                
+                await showMsg('线路数据已重置为出厂设置');
+            } catch (e) {
+                console.error('重置数据失败:', e);
+                await showMsg('重置数据失败: ' + (e && e.message));
             }
         }
     }
@@ -421,8 +458,9 @@ export function useFileIO(state) {
                 '济南地铁4号线': '济南地铁4号线.json',
                 '济南地铁6号线': '济南地铁6号线.json',
                 '济南地铁8号线': '济南地铁8号线.json',
-                '济南地铁4、8号线贯通车': '济南地铁4、8号线贯通车.json',
-                '高新云巴': '高新云巴.json'
+                '济南地铁4号线 - 济南地铁8号线 (贯通)': '济南地铁4号线 - 济南地铁8号线 (贯通).json',
+                '高新云巴': '高新云巴.json',
+                '济阳线': '济阳线.json'
             };
             const presetFilenames = Object.values(lineNameToFilename);
             
@@ -471,7 +509,7 @@ export function useFileIO(state) {
                         { data: JSON.parse(JSON.stringify(DEF_JINAN_METRO_4)), filename: '济南地铁4号线.json' },
                         { data: JSON.parse(JSON.stringify(DEF_JINAN_METRO_6)), filename: '济南地铁6号线.json' },
                         { data: JSON.parse(JSON.stringify(DEF_JINAN_METRO_8)), filename: '济南地铁8号线.json' },
-                        { data: JSON.parse(JSON.stringify(DEF_JINAN_METRO_4_8)), filename: '济南地铁4、8号线贯通车.json' },
+                        { data: JSON.parse(JSON.stringify(DEF_JINAN_METRO_4_8)), filename: '济南地铁4号线 - 济南地铁8号线 (贯通).json' },
                         { data: JSON.parse(JSON.stringify(DEF_JINAN_YUNBA)), filename: '高新云巴.json' }
                     );
                 } catch (e) {
@@ -546,8 +584,9 @@ export function managePresetLinesWithCloud(state, cloudLines) {
         '济南地铁4号线.json': '济南地铁4号线',
         '济南地铁6号线.json': '济南地铁6号线',
         '济南地铁8号线.json': '济南地铁8号线',
-        '济南地铁4、8号线贯通车.json': '济南地铁4、8号线贯通车',
-        '高新云巴.json': '高新云巴'
+        '济南地铁4号线 - 济南地铁8号线 (贯通).json': '济南地铁4号线 - 济南地铁8号线 (贯通)',
+        '高新云巴.json': '高新云巴',
+        '济阳线.json': '济阳线'
     };
     
     /**

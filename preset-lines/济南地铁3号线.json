@@ -7,36 +7,52 @@
     "serviceMode": "normal",
     "startIdx": 0,
     "termIdx": 12,
-    "version": 36
+    "version": 12,
+    "lineNameMerge": false,
+    "throughLineSegments": [
+      {
+        "lineName": "",
+        "throughStationName": ""
+      },
+      {
+        "lineName": "",
+        "throughStationName": ""
+      }
+    ],
+    "throughDirection": "",
+    "throughOperationEnabled": false,
+    "lineALineName": "",
+    "lineBLineName": "",
+    "throughStationIdx": -1
   },
   "stations": [
     {
       "name": "龙洞",
       "en": "Longdong",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "left",
+      "skip": false,
+      "stationType": "地下岛式",
+      "region": "历下区"
     },
     {
       "name": "孟家庄",
       "en": "Mengjiazhuang",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "left",
+      "skip": false,
+      "stationType": "地下",
+      "region": "历下区"
     },
     {
       "name": "龙奥大厦",
       "en": "Long'ao Dasha",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [
         {
           "line": "7号线",
@@ -44,22 +60,30 @@
           "suspended": true
         }
       ],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "left",
+      "skip": false,
+      "stationType": "地下",
+      "region": "历下区"
     },
     {
       "name": "奥体中心",
       "en": "Olympic Sports Center",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [
         {
           "line": "4号线",
-          "color": "#178f3b"
+          "color": "#008080"
         }
       ],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "left",
+      "skip": false,
+      "stationType": "地下",
+      "region": "历下区"
     },
     {
       "name": "安成街",
@@ -80,22 +104,26 @@
     {
       "name": "丁家庄",
       "en": "Dingjiazhuang",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "left",
+      "skip": false,
+      "stationType": "地下",
+      "region": "历下区"
     },
     {
       "name": "花园东路",
       "en": "Huayuan Donglu",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "left",
+      "skip": false,
+      "stationType": "地下",
+      "region": "历下区"
     },
     {
       "name": "八涧堡",
@@ -115,12 +143,14 @@
     {
       "name": "张马屯",
       "en": "Zhangmatun",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "left",
+      "skip": false,
+      "stationType": "地下",
+      "region": "历城区"
     },
     {
       "name": "王舍人",
@@ -129,7 +159,7 @@
       "dock": "both",
       "turnback": false,
       "expressStop": false,
-      "door": "right",
+      "door": "left",
       "skip": false,
       "stationType": "地下",
       "region": "历城区"
@@ -160,12 +190,15 @@
       "xfer": [
         {
           "line": "6号线",
-          "color": "#2ABAEE"
+          "color": "#2ABAEE",
+          "exitTransfer": false,
+          "suspended": false
         },
         {
           "line": "济阳线",
           "color": "#60c2be",
-          "suspended": false
+          "suspended": false,
+          "exitTransfer": true
         }
       ],
       "expressStop": false
@@ -173,32 +206,38 @@
     {
       "name": "滩头",
       "en": "Tantou",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "left",
+      "skip": false,
+      "stationType": "地下",
+      "region": "历城区"
     },
     {
       "name": "曲家庄",
       "en": "Qujiazhuang",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "left",
+      "skip": false,
+      "stationType": "地下",
+      "region": "历城区"
     },
     {
       "name": "川流",
       "en": "Chuanliu",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "left",
+      "skip": false,
+      "stationType": "地下",
+      "region": "历城区"
     },
     {
       "name": "临港北路",
@@ -207,7 +246,7 @@
       "dock": "both",
       "turnback": false,
       "expressStop": false,
-      "door": "right",
+      "door": "left",
       "skip": false,
       "stationType": "地下",
       "region": "历城区"
@@ -215,22 +254,26 @@
     {
       "name": "临空",
       "en": "Linkong",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "left",
+      "skip": false,
+      "stationType": "地下",
+      "region": "历城区"
     },
     {
       "name": "机场南",
       "en": "Airport South",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "left",
+      "skip": false,
+      "stationType": "地下",
+      "region": "历城区"
     },
     {
       "name": "机场北",
@@ -239,7 +282,7 @@
       "dock": "both",
       "turnback": true,
       "expressStop": false,
-      "door": "right",
+      "door": "left",
       "skip": true,
       "stationType": "地下",
       "region": "历城区"

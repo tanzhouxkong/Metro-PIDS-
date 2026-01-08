@@ -7,38 +7,29 @@
     "serviceMode": "normal",
     "startIdx": 0,
     "termIdx": 10,
-    "version": 17,
-    "throughLineSegments": [
-      {
-        "lineName": "",
-        "throughStationName": ""
-      },
-      {
-        "lineName": "",
-        "throughStationName": ""
-      }
-    ]
+    "version": 6,
+    "lineNameMerge": false
   },
   "stations": [
     {
       "name": "工研院",
       "en": "Gongyanyuan",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "right",
+      "skip": false
     },
     {
       "name": "创新谷",
       "en": "Chuangxingu",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "right",
+      "skip": false
     },
     {
       "name": "园博园",
@@ -48,85 +39,83 @@
       "turnback": false,
       "expressStop": false,
       "door": "right",
-      "skip": false,
-      "stationType": "高架",
-      "region": "长清区"
+      "skip": false
     },
     {
       "name": "大学城",
       "en": "Daxuecheng",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "right",
+      "skip": false
     },
     {
       "name": "紫薇路",
       "en": "Ziwei Lu",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "right",
+      "skip": false
     },
     {
       "name": "赵营",
       "en": "Zhaoying",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "right",
+      "skip": false
     },
     {
       "name": "玉符河",
       "en": "Yufuhe",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "right",
+      "skip": false
     },
     {
       "name": "王府庄",
       "en": "Wangfuzhuang",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [
         {
           "line": "2号线",
           "color": "#EFB52E"
         }
       ],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "right",
+      "skip": false
     },
     {
       "name": "大杨",
       "en": "Dayang",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "none",
       "xfer": [
         {
           "line": "4号线",
           "color": "#178F3B"
         }
       ],
-      "expressStop": false
+      "dock": "both",
+      "turnback": false,
+      "expressStop": false,
+      "door": "right",
+      "skip": false
     },
     {
       "name": "济南西站",
       "en": "Jinanxi Railway Station",
       "skip": false,
-      "door": "left",
+      "door": "right",
       "dock": "both",
       "turnback": "none",
       "xfer": [
@@ -141,12 +130,12 @@
     {
       "name": "方特",
       "en": "Fangte",
-      "skip": false,
-      "door": "left",
-      "dock": "both",
-      "turnback": "pre",
       "xfer": [],
-      "expressStop": false
+      "dock": "both",
+      "turnback": true,
+      "expressStop": false,
+      "door": "right",
+      "skip": false
     }
   ]
 }

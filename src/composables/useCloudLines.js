@@ -151,11 +151,15 @@ export function useCloudLines(state) {
             return { ok: false, error: '未配置 GitHub/Gitee 仓库信息' };
         }
         
+        // 对文件名进行 URL 编码，确保特殊字符（如空格、括号等）能正确处理
+        const encodedFilename = encodeURIComponent(filename);
+        const encodedPath = encodeURIComponent(config.path || 'preset-lines');
+        
         let rawUrl;
         if (provider === 'github') {
-            rawUrl = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${config.branch}/${config.path}/${filename}`;
+            rawUrl = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${config.branch}/${encodedPath}/${encodedFilename}`;
         } else if (provider === 'gitee') {
-            rawUrl = `https://gitee.com/${config.owner}/${config.repo}/raw/${config.branch}/${config.path}/${filename}`;
+            rawUrl = `https://gitee.com/${config.owner}/${config.repo}/raw/${config.branch}/${encodedPath}/${encodedFilename}`;
         } else {
             return { ok: false, error: '不支持的Git提供者' };
         }

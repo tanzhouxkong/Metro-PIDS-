@@ -277,7 +277,79 @@
             display: block;
             font-size: 18px;
             font-weight: bold;
+        }
+        
+        .f12-toggle-container {
+            margin-top: 20px;
+            padding: 16px;
+            background: var(--bg, #f5f5f5);
+            border-radius: 8px;
+        }
+        
+        .f12-toggle-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .f12-toggle-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
             color: var(--text, #333);
+            margin-bottom: 4px;
+        }
+        
+        .f12-toggle-description {
+            font-size: 12px;
+            color: var(--muted, #666);
+            margin: 0;
+        }
+        
+        .f12-toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+        
+        .f12-toggle-input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .f12-toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            border-radius: 26px;
+            transition: 0.3s;
+        }
+        
+        .f12-toggle-circle {
+            position: absolute;
+            content: '';
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            border-radius: 50%;
+            transition: 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .f12-toggle-input:checked + .f12-toggle-slider {
+            background-color: #1677ff;
+        }
+        
+        .f12-toggle-input:checked + .f12-toggle-slider + .f12-toggle-circle {
+            transform: translateX(24px);
         }
         
         /* Mica 效果提示样式 */
@@ -359,20 +431,20 @@
                     <i class="fas fa-times"></i> 关闭开发者模式
                 </button>
             </div>
-            <div style="margin-top: 20px; padding: 16px; background: var(--bg, #f5f5f5); border-radius: 8px;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div class="f12-toggle-container">
+                <div class="f12-toggle-wrapper">
                     <div>
-                        <label style="display: block; font-size: 14px; font-weight: 600; color: var(--text, #333); margin-bottom: 4px;">
+                        <label class="f12-toggle-label" for="enable-f12-devtools">
                             允许在打包后使用 F12 打开开发者工具
                         </label>
-                        <p style="font-size: 12px; color: var(--muted, #666); margin: 0;">
+                        <p class="f12-toggle-description">
                             开启后，即使在打包版本中也可以使用 F12 快捷键打开开发者工具
                         </p>
                     </div>
-                    <label style="position: relative; display: inline-block; width: 50px; height: 26px;">
-                        <input type="checkbox" id="enable-f12-devtools" style="opacity: 0; width: 0; height: 0;" onchange="toggleF12DevTools(this.checked)">
-                        <span id="toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; border-radius: 26px; transition: 0.3s;"></span>
-                        <span id="toggle-circle" style="position: absolute; content: ''; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></span>
+                    <label class="f12-toggle-switch">
+                        <input type="checkbox" id="enable-f12-devtools" class="f12-toggle-input" aria-label="允许在打包后使用 F12 打开开发者工具" title="允许在打包后使用 F12 打开开发者工具" onchange="toggleF12DevTools(this.checked)">
+                        <span id="toggle-slider" class="f12-toggle-slider"></span>
+                        <span id="toggle-circle" class="f12-toggle-circle"></span>
                     </label>
                 </div>
             </div>
