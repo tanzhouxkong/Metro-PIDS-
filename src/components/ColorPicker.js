@@ -172,10 +172,10 @@ export default {
   },
   template: `
     <div v-if="showDialog" style="position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:20000; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px);" @click.self="cancel">
-      <div @click.stop @paste.stop style="background:var(--card); border-radius:12px; padding:24px; width:420px; max-width:90%; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+      <div @click.stop @paste.stop style="background:#ffffff; color:#000000; border-radius:12px; padding:24px; width:420px; max-width:90%; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-          <h2 style="margin:0; font-size:20px; font-weight:bold; color:var(--text);">选择颜色</h2>
-          <button @click="cancel" style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:24px; padding:0; width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; transition:background 0.2s;" @mouseover="$event.target.style.background='var(--bg)'" @mouseout="$event.target.style.background='none'">&times;</button>
+          <h2 style="margin:0; font-size:20px; font-weight:bold; color:#000000;">选择颜色</h2>
+          <button @click="cancel" style="background:none; border:none; color:#666666; cursor:pointer; font-size:24px; padding:0; width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; transition:background 0.2s;" @mouseover="$event.target.style.background='#f0f0f0'" @mouseout="$event.target.style.background='none'">&times;</button>
         </div>
 
         <!-- 颜色预览 -->
@@ -185,13 +185,13 @@ export default {
 
         <!-- 十六进制输入 -->
         <div style="margin-bottom:20px;">
-          <label style="display:block; font-size:13px; font-weight:bold; color:var(--muted); margin-bottom:8px;">十六进制 (Hex)</label>
+          <label style="display:block; font-size:13px; font-weight:bold; color:#666666; margin-bottom:8px;">十六进制 (Hex)</label>
           <div style="display:flex; gap:8px; align-items:center;">
             <input 
               type="text" 
               v-model="hexColor" 
               placeholder="#000000"
-              style="flex:1; padding:10px; border-radius:6px; border:1px solid var(--divider); background:var(--bg); color:var(--text); font-family:monospace;"
+              style="flex:1; padding:10px; border-radius:6px; border:1px solid #dddddd; background:#ffffff; color:#000000; font-family:monospace;"
               @input="updateRgb"
               @click.stop
               @paste="handlePaste($event, 'hex')"
@@ -207,10 +207,10 @@ export default {
 
         <!-- RGB 输入 -->
         <div style="margin-bottom:20px;">
-          <label style="display:block; font-size:13px; font-weight:bold; color:var(--muted); margin-bottom:8px;">RGB</label>
+          <label style="display:block; font-size:13px; font-weight:bold; color:#666666; margin-bottom:8px;">RGB</label>
           <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
             <div>
-              <label style="display:block; font-size:11px; color:var(--muted); margin-bottom:4px;">R</label>
+              <label style="display:block; font-size:11px; color:#666666; margin-bottom:4px;">R</label>
               <input 
                 type="number" 
                 v-model.number="rgb.r" 
@@ -219,11 +219,11 @@ export default {
                 @input="updateHex"
                 @click.stop
                 @paste="handlePaste($event, 'rgb')"
-                style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--divider); background:var(--bg); color:var(--text);"
+                style="width:100%; padding:8px; border-radius:6px; border:1px solid #dddddd; background:#ffffff; color:#000000;"
               >
             </div>
             <div>
-              <label style="display:block; font-size:11px; color:var(--muted); margin-bottom:4px;">G</label>
+              <label style="display:block; font-size:11px; color:#666666; margin-bottom:4px;">G</label>
               <input 
                 type="number" 
                 v-model.number="rgb.g" 
@@ -232,11 +232,11 @@ export default {
                 @input="updateHex"
                 @click.stop
                 @paste="handlePaste($event, 'rgb')"
-                style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--divider); background:var(--bg); color:var(--text);"
+                style="width:100%; padding:8px; border-radius:6px; border:1px solid #dddddd; background:#ffffff; color:#000000;"
               >
             </div>
             <div>
-              <label style="display:block; font-size:11px; color:var(--muted); margin-bottom:4px;">B</label>
+              <label style="display:block; font-size:11px; color:#666666; margin-bottom:4px;">B</label>
               <input 
                 type="number" 
                 v-model.number="rgb.b" 
@@ -245,7 +245,7 @@ export default {
                 @input="updateHex"
                 @click.stop
                 @paste="handlePaste($event, 'rgb')"
-                style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--divider); background:var(--bg); color:var(--text);"
+                style="width:100%; padding:8px; border-radius:6px; border:1px solid #dddddd; background:#ffffff; color:#000000;"
               >
             </div>
           </div>

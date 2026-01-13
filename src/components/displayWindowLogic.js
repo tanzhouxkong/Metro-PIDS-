@@ -1583,12 +1583,45 @@ export function initDisplayWindow(rootElement) {
     const themeColor = meta.themeColor || '#00b894';
     root.style.setProperty('--theme', themeColor);
     root.style.setProperty('--contrast-color', getContrastColor(themeColor));
-    // 根据主题颜色与黄色的对比度，决定箭头闪烁颜色
-    // 如果黄色与主题颜色对比度低（< 3.0），使用红色，否则使用黄色
+    // 根据主题颜色决定箭头闪烁颜色的“反色”逻辑：
+    // - 如果背景颜色接近红色，则使用黄色箭头
+    // - 如果背景颜色接近黄色，则使用红色箭头
+    // - 其他颜色默认使用黄色箭头
     const yellowColor = '#f1c40f';
     const redColor = '#e74c3c';
-    const yellowContrast = getContrastRatio(yellowColor, themeColor);
-    const arrowBlinkColor = yellowContrast < 3.0 ? redColor : yellowColor;
+    let arrowBlinkColor = yellowColor;
+    try {
+      const m = /^#?([0-9a-f]{6})$/i.exec(themeColor);
+      if (m) {
+        const intVal = parseInt(m[1], 16);
+        const r = (intVal >> 16) & 0xff;
+        const g = (intVal >> 8) & 0xff;
+        const b = intVal & 0xff;
+        // 参考目标颜色的 RGB
+        const redRef = { r: 0xe7, g: 0x4c, b: 0x3c };     // #e74c3c
+        const yellowRef = { r: 0xf1, g: 0xc4, b: 0x0f };  // #f1c40f
+        const dist = (c1, c2) => {
+          const dr = c1.r - c2.r;
+          const dg = c1.g - c2.g;
+          const db = c1.b - c2.b;
+          return Math.sqrt(dr * dr + dg * dg + db * db);
+        };
+        const distToRed = dist({ r, g, b }, redRef);
+        const distToYellow = dist({ r, g, b }, yellowRef);
+        // 阈值 ~100：大致表示“颜色比较接近”
+        if (distToRed < 100) {
+          // 背景接近红色 → 箭头用黄色
+          arrowBlinkColor = yellowColor;
+        } else if (distToYellow < 100) {
+          // 背景接近黄色 → 箭头用红色
+          arrowBlinkColor = redColor;
+        } else {
+          arrowBlinkColor = yellowColor;
+        }
+      }
+    } catch (e) {
+      arrowBlinkColor = yellowColor;
+    }
     root.style.setProperty('--arrow-blink-accent-color', arrowBlinkColor);
     const sts = appData.stations;
     const mapDiv = locateId('d-map');

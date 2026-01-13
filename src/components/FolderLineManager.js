@@ -188,6 +188,14 @@ export default {
     // 选择线路
     async function selectLine(line) {
       try {
+        if (!line) {
+          console.warn('selectLine: line is null/undefined');
+          return;
+        }
+        if (!line.name) {
+          console.warn('selectLine: line.name is empty', line);
+          return;
+        }
         // 确保当前文件夹已切换并加载
         if (selectedFolderId.value !== currentFolderId.value) {
           await loadLinesFromFolder(selectedFolderId.value);
@@ -198,13 +206,14 @@ export default {
           await props.fileIO.refreshLinesFromFolder(true);
         }
         
+        const selectedName = String(line.name);
         // 找到线路在当前列表中的索引
         const idx = props.pidsState.store.list.findIndex(l => {
-          if (!l.meta || !l.meta.lineName) return false;
+          if (!l || !l.meta || !l.meta.lineName) return false;
           // 移除颜色标记后比较
-          const cleanLineName = l.meta.lineName.replace(/<[^>]+>([^<]*)<\/>/g, '$1');
-          const cleanSelectedName = line.name.replace(/<[^>]+>([^<]*)<\/>/g, '$1');
-          return cleanLineName === cleanSelectedName || l.meta.lineName === line.name;
+          const cleanLineName = String(l.meta.lineName).replace(/<[^>]+>([^<]*)<\/>/g, '$1');
+          const cleanSelectedName = selectedName.replace(/<[^>]+>([^<]*)<\/>/g, '$1');
+          return cleanLineName === cleanSelectedName || l.meta.lineName === selectedName;
         });
         
         if (idx >= 0) {
@@ -215,7 +224,7 @@ export default {
           emit('switchLine', idx);
           showDialog.value = false;
         } else {
-          console.warn('线路未找到:', line.name);
+          console.warn('线路未找到:', selectedName);
         }
       } catch (e) {
         console.error('切换线路失败:', e);

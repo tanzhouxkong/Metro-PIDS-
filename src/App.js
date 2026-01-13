@@ -77,7 +77,11 @@ export default {
         try { console.log('[debug][bc] Ignoring CMD_UI from BroadcastChannel', data); } catch(e) {}
         return;
       }
-      if (data && data.t === 'REQ') sync();
+      // 处理第三方显示器的数据请求
+      if (data && data.t === 'REQ') {
+        console.log('[App] 收到第三方显示器的数据请求，立即同步数据');
+        sync();
+      }
       // 远端按键指令
       if (data && data.t === 'CMD_KEY') {
          const code = data.code || data.key;
@@ -124,6 +128,14 @@ export default {
     };
     if (typeof window !== 'undefined') window.addEventListener('message', handleWindowMsg);
 
+    // 页面加载完成后，自动同步一次数据（确保第三方显示器能立即获取数据）
+    // 延迟一小段时间，确保数据已加载完成
+    setTimeout(() => {
+      if (pidState.appData && pidState.appData.stations && pidState.appData.stations.length > 0) {
+        console.log('[App] 页面加载完成，自动同步数据到所有显示器');
+        sync();
+      }
+    }, 500);
 
     return { pidState, uiState };
   },

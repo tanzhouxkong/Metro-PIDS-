@@ -1,4 +1,5 @@
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
+import { Teleport } from 'vue'
 import { usePidsState } from '../composables/usePidsState.js'
 import { useController } from '../composables/useController.js'
 import { useFileIO } from '../composables/useFileIO.js'
@@ -7,7 +8,7 @@ import dialogService from '../utils/dialogService.js'
 
 export default {
   name: 'AdminApp',
-  components: { StationEditor },
+  components: { StationEditor, Teleport },
   setup() {
     const { state } = usePidsState()
     const { sync, next, move, setArr, setDep, jumpTo, getStep } = useController()
@@ -19,6 +20,12 @@ export default {
     const draggingIndex = ref(-1)
     const dragOverIndex = ref(-1)
     const listRef = ref(null)
+    
+    // 右键菜单状态
+    const stationContextMenu = ref({ visible: false, x: 0, y: 0, station: null, index: -1 })
+    
+    // 剪贴板状态（用于复制/剪贴站点）
+    const clipboard = ref({ type: null, station: null, index: -1 })
 
     function onDragStart(e, index) {
         draggingIndex.value = index
@@ -100,9 +107,21 @@ export default {
 
     async function saveStation(data) {
         if (editingIndex.value === -1) {
+            // 如果 editingIndex 是 -1，说明是从"新建站点"按钮调用的，添加到末尾
             state.appData.stations.push(data)
-        } else {
+        } else if (editingIndex.value >= 0 && editingIndex.value < state.appData.stations.length) {
+            // 如果 editingIndex 是有效索引，说明是编辑已有站点
             state.appData.stations[editingIndex.value] = data
+        } else {
+            // 如果 editingIndex 超出范围，说明是从右键菜单"新建"调用的，插入到指定位置
+            const insertIndex = editingIndex.value >= state.appData.stations.length 
+                ? state.appData.stations.length 
+                : editingIndex.value
+            state.appData.stations.splice(insertIndex, 0, data)
+            // 更新当前索引
+            if (state.rt.idx >= insertIndex) {
+                state.rt.idx++
+            }
         }
         try {
             console.log('[AdminApp] saveStation - calling sync with', data);
@@ -117,6 +136,7 @@ export default {
             console.error('[AdminApp] sync failed in saveStation', e);
         } finally {
             showEditor.value = false
+            editingIndex.value = -1
             console.log('[AdminApp] saveStation - editor closed');
         }
     }
@@ -128,6 +148,186 @@ export default {
             state.appData.stations.splice(index, 1)
             if (state.rt.idx >= state.appData.stations.length) state.rt.idx = 0
             sync()
+            // 保存到文件
+            try {
+                await fileIO.saveCurrentLine()
+            } catch (e) {
+                console.warn('[AdminApp] fileIO.saveCurrentLine failed', e)
+            }
+        }
+    }
+    
+    // 显示站点右键菜单
+    function showStationContextMenu(event, station, index) {
+        event.preventDefault()
+        event.stopPropagation()
+        
+        stationContextMenu.value = {
+            visible: true,
+            x: event.clientX,
+            y: event.clientY,
+            station: station,
+            index: index
+        }
+        
+        // 使用 nextTick 在菜单渲染后调整位置，确保菜单不被裁剪
+        nextTick(() => {
+            const menuElement = document.querySelector('[data-station-context-menu]')
+            if (menuElement) {
+                const rect = menuElement.getBoundingClientRect()
+                const viewportWidth = window.innerWidth
+                const viewportHeight = window.innerHeight
+                
+                let x = event.clientX
+                let y = event.clientY
+                
+                // 如果菜单会在右侧被截断，调整到左侧
+                if (x + rect.width > viewportWidth) {
+                    x = event.clientX - rect.width
+                }
+                
+                // 如果菜单会在底部被截断，调整到上方
+                if (y + rect.height > viewportHeight) {
+                    y = event.clientY - rect.height
+                }
+                
+                // 确保不会超出左边界
+                if (x < 0) x = 10
+                
+                // 确保不会超出上边界
+                if (y < 0) y = 10
+                
+                // 更新位置
+                stationContextMenu.value.x = x
+                stationContextMenu.value.y = y
+            }
+        })
+    }
+    
+    // 关闭站点右键菜单
+    function closeStationContextMenu() {
+        stationContextMenu.value.visible = false
+    }
+    
+    // 新建站点（从右键菜单）
+    function newStationFromMenu() {
+        const targetIndex = stationContextMenu.value.index >= 0 
+            ? stationContextMenu.value.index + 1 
+            : state.appData.stations.length
+        closeStationContextMenu()
+        // 设置插入位置
+        editingIndex.value = targetIndex
+        editingStation.value = { name: '', en: '', skip: false, door: 'left', dock: 'both', xfer: [], expressStop: false }
+        isNewStation.value = true
+        showEditor.value = true
+    }
+    
+    // 复制站点
+    function copyStation() {
+        closeStationContextMenu()
+        const index = stationContextMenu.value.index
+        if (index >= 0 && state.appData.stations[index]) {
+            clipboard.value = {
+                type: 'copy',
+                station: JSON.parse(JSON.stringify(state.appData.stations[index])),
+                index: index
+            }
+        }
+    }
+    
+    // 剪切站点
+    function cutStation() {
+        closeStationContextMenu()
+        const index = stationContextMenu.value.index
+        if (index >= 0 && state.appData.stations[index]) {
+            clipboard.value = {
+                type: 'cut',
+                station: JSON.parse(JSON.stringify(state.appData.stations[index])),
+                index: index
+            }
+        }
+    }
+    
+    // 粘贴站点
+    async function pasteStation() {
+        closeStationContextMenu()
+        if (!clipboard.value.station) return
+        
+        const targetIndex = stationContextMenu.value.index >= 0 
+            ? stationContextMenu.value.index + 1 
+            : state.appData.stations.length
+        
+        // 如果是剪切操作，需要先处理源站点
+        if (clipboard.value.type === 'cut') {
+            const sourceIndex = clipboard.value.index
+            
+            // 如果源索引和目标索引相同，不执行操作
+            if (sourceIndex === targetIndex - 1) {
+                clipboard.value = { type: null, station: null, index: -1 }
+                return
+            }
+            
+            // 先删除源站点
+            state.appData.stations.splice(sourceIndex, 1)
+            
+            // 调整目标索引（如果目标在源之后，需要减1）
+            const adjustedTargetIndex = targetIndex > sourceIndex ? targetIndex - 1 : targetIndex
+            
+            // 插入站点到目标位置
+            state.appData.stations.splice(adjustedTargetIndex, 0, JSON.parse(JSON.stringify(clipboard.value.station)))
+            
+            // 更新当前索引
+            const currentIdx = state.rt.idx
+            if (sourceIndex < currentIdx && adjustedTargetIndex > currentIdx) {
+                // 源在当前位置之前，目标在当前位置之后，索引-1
+                state.rt.idx--
+            } else if (sourceIndex > currentIdx && adjustedTargetIndex <= currentIdx) {
+                // 源在当前位置之后，目标在当前位置之前或相同，索引+1
+                state.rt.idx++
+            } else if (sourceIndex === currentIdx) {
+                // 源就是当前位置，移动到目标位置
+                state.rt.idx = adjustedTargetIndex
+            }
+        } else {
+            // 复制操作，直接插入
+            state.appData.stations.splice(targetIndex, 0, JSON.parse(JSON.stringify(clipboard.value.station)))
+            
+            // 更新当前索引
+            if (state.rt.idx >= targetIndex) {
+                state.rt.idx++
+            }
+        }
+        
+        sync()
+        
+        // 保存到文件
+        try {
+            await fileIO.saveCurrentLine()
+        } catch (e) {
+            console.warn('[AdminApp] fileIO.saveCurrentLine failed', e)
+        }
+        
+        // 如果是剪切操作，清除剪贴板
+        if (clipboard.value.type === 'cut') {
+            clipboard.value = { type: null, station: null, index: -1 }
+        }
+    }
+    
+    // 编辑站点（从右键菜单）
+    function editStationFromMenu() {
+        const index = stationContextMenu.value.index
+        if (index >= 0) {
+            closeStationContextMenu()
+            openEditor(index)
+        }
+    }
+    
+    // 删除站点（从右键菜单）
+    async function deleteStationFromMenu() {
+        const index = stationContextMenu.value.index
+        if (index >= 0) {
+            closeStationContextMenu()
+            await deleteStation(index)
         }
     }
 
@@ -202,7 +402,11 @@ export default {
             showEditor, editingStation, editingIndex, isNewStation,
             openEditor, saveStation, deleteStation,
             currentStation, routeInfo, statusDesc, serviceModeLabel,
-            onDragStart, onDragOver, onDrop, onDragEnter, onDragEnd, onDragLeave, draggingIndex, dragOverIndex, listRef
+            onDragStart, onDragOver, onDrop, onDragEnter, onDragEnd, onDragLeave, draggingIndex, dragOverIndex, listRef,
+            stationContextMenu, clipboard,
+            showStationContextMenu, closeStationContextMenu,
+            newStationFromMenu, copyStation, cutStation, pasteStation,
+            editStationFromMenu, deleteStationFromMenu
         }
   },
   template: `
@@ -250,12 +454,15 @@ export default {
         <!-- Station List Header -->
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <div style="font-weight:bold; color:var(--btn-red-bg);">站点管理</div>
-            <button class="btn b-org" style="padding:6px 16px; box-shadow: 0 6px 18px rgba(0,0,0,0.08);" @click="openEditor(-1)"><i class="fas fa-plus"></i> 新建站点</button>
+            <div style="font-size:12px; color:var(--muted); display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-info-circle" style="font-size:11px;"></i>
+                <span>拖拽站点条可改变顺序，右键站点可进行编辑、删除、复制、剪切、粘贴操作，右键空白处可新建站点</span>
+            </div>
         </div>
 
         <!-- Station List -->
         <div class="card" style="flex:1; display:flex; flex-direction:column; overflow:hidden; padding:0; border-left: 6px solid #FF9F43; border-radius:12px;">
-            <div class="st-list" ref="listRef" style="flex:1; overflow-y:auto; padding:10px;" @dragover="onDragOver($event)">
+            <div class="st-list" ref="listRef" style="flex:1; overflow-y:auto; padding:10px;" @dragover="onDragOver($event)" @contextmenu.prevent="showStationContextMenu($event, null, -1)">
                 <div v-if="state.appData && state.appData.stations" 
                      v-for="(st, i) in state.appData.stations" 
                      :key="i" 
@@ -281,7 +488,8 @@ export default {
                      @dragleave="onDragLeave"
                      @dragend="onDragEnd"
                      @drop="onDrop($event, i)"
-                     @click="jumpTo(i)">
+                     @click="jumpTo(i)"
+                     @contextmenu.prevent="showStationContextMenu($event, st, i)">
                     <div class="item-txt" style="display:flex; align-items:center; gap:8px;">
                         <div class="drag-handle" style="color:var(--muted); cursor:grab; padding-right:8px;"><i class="fas fa-bars"></i></div>
                         <span style="font-weight:bold; color:var(--muted); width:30px;">[{{i+1}}]</span>
@@ -314,10 +522,6 @@ export default {
                         </div>
                         <span v-if="st.skip" class="badge" style="background:var(--btn-org-bg); font-size:10px; padding:2px 4px; border-radius:2px;">暂缓</span>
                     </div>
-                    <div class="item-act" style="display:flex; gap:8px;">
-                        <button class="btn b-blue" style="width:28px; height:28px; padding:0; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow: 0 6px 18px rgba(0,0,0,0.08);" @click.stop="openEditor(i)"><i class="fas fa-pencil-alt" style="font-size:12px;"></i></button>
-                        <button class="btn b-red" style="width:28px; height:28px; padding:0; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow: 0 6px 18px rgba(0,0,0,0.08);" @click.stop="deleteStation(i)"><i class="fas fa-times" style="font-size:12px;"></i></button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -328,6 +532,111 @@ export default {
             :is-new="isNewStation"
             @save="saveStation" 
         />
+        
+        <!-- 站点右键菜单 - 使用 Teleport 传送到 body，允许溢出窗口 -->
+        <Teleport to="body">
+            <div 
+                v-if="stationContextMenu.visible"
+                data-station-context-menu
+                @click.stop
+                @contextmenu.prevent
+                :style="{
+                    position: 'fixed',
+                    left: stationContextMenu.x + 'px',
+                    top: stationContextMenu.y + 'px',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(224, 224, 224, 0.8)',
+                    borderRadius: '8px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                    zIndex: 9999,
+                    minWidth: '140px',
+                    padding: '6px 0'
+                }"
+            >
+                <div 
+                    @click="newStationFromMenu()"
+                    style="padding: 10px 16px; cursor: pointer; font-size: 13px; color: var(--text, #333); display: flex; align-items: center; gap: 10px; transition: background 0.2s;"
+                    @mouseover="$event.target.style.background='rgba(0,0,0,0.05)'"
+                    @mouseout="$event.target.style.background='transparent'"
+                >
+                    <i class="fas fa-plus" style="font-size: 12px; color: var(--muted, #666); width: 16px;"></i>
+                    新建
+                </div>
+                <div v-if="stationContextMenu.index >= 0" style="height: 1px; background: rgba(224, 224, 224, 0.5); margin: 4px 0;"></div>
+                <div 
+                    v-if="stationContextMenu.index >= 0"
+                    @click="editStationFromMenu()"
+                    style="padding: 10px 16px; cursor: pointer; font-size: 13px; color: var(--text, #333); display: flex; align-items: center; gap: 10px; transition: background 0.2s;"
+                    @mouseover="$event.target.style.background='rgba(0,0,0,0.05)'"
+                    @mouseout="$event.target.style.background='transparent'"
+                >
+                    <i class="fas fa-edit" style="font-size: 12px; color: var(--muted, #666); width: 16px;"></i>
+                    编辑
+                </div>
+                <div v-if="stationContextMenu.index >= 0" style="height: 1px; background: rgba(224, 224, 224, 0.5); margin: 4px 0;"></div>
+                <div 
+                    v-if="stationContextMenu.index >= 0"
+                    @click="copyStation()"
+                    style="padding: 10px 16px; cursor: pointer; font-size: 13px; color: var(--text, #333); display: flex; align-items: center; gap: 10px; transition: background 0.2s;"
+                    @mouseover="$event.target.style.background='rgba(0,0,0,0.05)'"
+                    @mouseout="$event.target.style.background='transparent'"
+                >
+                    <i class="fas fa-copy" style="font-size: 12px; color: var(--muted, #666); width: 16px;"></i>
+                    复制
+                </div>
+                <div 
+                    v-if="stationContextMenu.index >= 0"
+                    @click="cutStation()"
+                    style="padding: 10px 16px; cursor: pointer; font-size: 13px; color: var(--text, #333); display: flex; align-items: center; gap: 10px; transition: background 0.2s;"
+                    @mouseover="$event.target.style.background='rgba(0,0,0,0.05)'"
+                    @mouseout="$event.target.style.background='transparent'"
+                >
+                    <i class="fas fa-cut" style="font-size: 12px; color: var(--muted, #666); width: 16px;"></i>
+                    剪切
+                </div>
+                <div 
+                    @click="pasteStation()"
+                    :style="{
+                        padding: '10px 16px',
+                        cursor: clipboard.station ? 'pointer' : 'not-allowed',
+                        fontSize: '13px',
+                        color: clipboard.station ? 'var(--text, #333)' : 'var(--muted, #999)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        transition: 'background 0.2s',
+                        opacity: clipboard.station ? 1 : 0.5
+                    }"
+                    @mouseover="clipboard.station && ($event.target.style.background='rgba(0,0,0,0.05)')"
+                    @mouseout="clipboard.station && ($event.target.style.background='transparent')"
+                >
+                    <i class="fas fa-paste" :style="{fontSize: '12px', color: clipboard.station ? 'var(--muted, #666)' : 'var(--muted, #999)', width: '16px'}"></i>
+                    粘贴
+                </div>
+                <div v-if="stationContextMenu.index >= 0" style="height: 1px; background: rgba(224, 224, 224, 0.5); margin: 4px 0;"></div>
+                <div 
+                    v-if="stationContextMenu.index >= 0"
+                    @click="deleteStationFromMenu()"
+                    style="padding: 10px 16px; cursor: pointer; font-size: 13px; color: var(--btn-red-bg, #ff4444); display: flex; align-items: center; gap: 10px; transition: background 0.2s;"
+                    @mouseover="$event.target.style.background='rgba(255, 68, 68, 0.1)'"
+                    @mouseout="$event.target.style.background='transparent'"
+                >
+                    <i class="fas fa-trash" style="font-size: 12px; color: var(--btn-red-bg, #ff4444); width: 16px;"></i>
+                    删除
+                </div>
+            </div>
+        </Teleport>
+        
+        <!-- 点击外部关闭站点右键菜单的遮罩 - 使用 Teleport 传送到 body -->
+        <Teleport to="body">
+            <div 
+                v-if="stationContextMenu.visible"
+                @click="closeStationContextMenu"
+                style="position: fixed; inset: 0; z-index: 9998; background: transparent;"
+            ></div>
+        </Teleport>
     </div>
   `
 }

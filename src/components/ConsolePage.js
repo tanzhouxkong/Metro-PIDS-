@@ -206,6 +206,10 @@ export default {
     if (!pidsState.appData.meta.serviceMode) pidsState.appData.meta.serviceMode = 'normal';
     // 兼容旧数据，补齐线路名合并开关
     if (pidsState.appData.meta.lineNameMerge === undefined) pidsState.appData.meta.lineNameMerge = false;
+    // 初始化显示全部站点选项
+    if (pidsState.appData.meta.showAllStations === undefined) {
+        pidsState.appData.meta.showAllStations = false;
+    }
     
     // 初始化贯通线路设置字段
     if (pidsState.appData.meta.throughLineSegments === undefined) {
@@ -563,8 +567,6 @@ export default {
             pidsState.rt.idx = 0;
             pidsState.rt.state = 0;
             
-            // 清除当前文件路径，确保保存时会为新线路创建新文件
-            pidsState.currentFilePath = null;
             // 清除线路名称到文件路径的映射（如果存在）
             const cleanLineName = mergedLineName.replace(/<[^>]+>([^<]*)<\/>/g, '$1').trim();
             if (pidsState.lineNameToFilePath && pidsState.lineNameToFilePath[cleanLineName]) {
@@ -575,12 +577,99 @@ export default {
             lineSelectorTarget.value = null;
             localStorage.removeItem('throughOperationSelectorTarget');
             
-            saveCfg();
-            sync();
+            // 创建一个纯 JSON 可序列化的对象（移除不可序列化的内容，如函数、循环引用等）
+            let serializableData;
+            try {
+                serializableData = JSON.parse(JSON.stringify(mergedData));
+            } catch (e) {
+                console.error('[贯通线路] 序列化失败:', e);
+                await showMsg('序列化线路数据失败: ' + (e.message || e), '错误');
+                // 回滚
+                pidsState.store.list.pop();
+                if (pidsState.store.cur >= pidsState.store.list.length) {
+                    pidsState.store.cur = Math.max(0, pidsState.store.list.length - 1);
+                }
+                if (pidsState.store.list.length > 0) {
+                    pidsState.appData = pidsState.store.list[pidsState.store.cur];
+                }
+                return;
+            }
             
-            const throughStations = validSegments.slice(0, -1).map(s => s.throughStationName).filter(s => s).join('、');
+            // 将贯通线路数据存储到 localStorage，供线路管理器读取
+            localStorage.setItem('pendingThroughLineData', JSON.stringify({
+                lineData: serializableData,
+                lineName: mergedLineName,
+                cleanLineName: cleanLineName,
+                validSegments: validSegments
+            }));
             
-            await showMsg(`贯通线路已创建！\n线路名称: ${mergedLineName}\n线路段数: ${validSegments.length}\n贯通站点: ${throughStations || '无'}\n合并后站点数: ${mergedData.stations.length}\n\n已自动切换到新创建的贯通线路`);
+            // 设置保存模式标记（必须在打开窗口之前设置）
+            localStorage.setItem('throughOperationSelectorTarget', 'save-through-line');
+            
+            // 打开线路管理器窗口，让用户选择保存位置
+            if (window.electronAPI && window.electronAPI.openLineManager) {
+                await window.electronAPI.openLineManager('save-through-line');
+            } else {
+                await openLineManagerWindow();
+            }
+            
+            // 监听保存完成事件
+            const checkSaveResult = setInterval(async () => {
+                const saveResult = localStorage.getItem('throughLineSaveResult');
+                if (saveResult) {
+                    clearInterval(checkSaveResult);
+                    localStorage.removeItem('throughLineSaveResult');
+                    localStorage.removeItem('pendingThroughLineData');
+                    
+                    const result = JSON.parse(saveResult);
+                    if (result.success) {
+                        // 保存成功，更新状态
+                        pidsState.currentFolderId = result.folderId;
+                        pidsState.currentFilePath = result.filePath;
+                        
+                        // 刷新线路列表（从保存的文件夹）
+                        if (result.folderPath) {
+                            await fileIO.refreshLinesFromFolder(true, result.folderPath);
+                        }
+                        
+                        // 获取文件夹名称用于显示
+                        const folderName = pidsState.folders.find(f => f.id === result.folderId)?.name || result.folderId;
+                        const folderInfo = `\n保存位置: ${folderName}`;
+                        
+                        saveCfg();
+                        sync();
+                        
+                        const throughStations = validSegments.slice(0, -1).map(s => s.throughStationName).filter(s => s).join('、');
+                        
+                        // 等待线路管理器窗口完全关闭后再显示通知（确保通知在线路管理器保存完成后弹出）
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                        // 使用系统通知显示成功消息
+                        const { showNotification } = await import('../utils/notificationService.js');
+                        const notificationMessage = `贯通线路已创建并保存！\n线路名称: ${mergedLineName}\n线路段数: ${validSegments.length}\n贯通站点: ${throughStations || '无'}\n合并后站点数: ${mergedData.stations.length}${folderInfo}\n\n已自动切换到新创建的贯通线路`;
+                        showNotification('贯通线路保存成功', notificationMessage);
+                    } else {
+                        // 保存失败或被取消，回滚
+                        pidsState.store.list.pop();
+                        if (pidsState.store.cur >= pidsState.store.list.length) {
+                            pidsState.store.cur = Math.max(0, pidsState.store.list.length - 1);
+                        }
+                        if (pidsState.store.list.length > 0) {
+                            pidsState.appData = pidsState.store.list[pidsState.store.cur];
+                        }
+                        if (result.error && result.error !== 'cancelled') {
+                            await showMsg('保存贯通线路失败: ' + result.error, '错误');
+                        } else {
+                            await showMsg('已取消创建贯通线路', '提示');
+                        }
+                    }
+                }
+            }, 500);
+            
+            // 30秒后清除监听（防止内存泄漏）
+            setTimeout(() => {
+                clearInterval(checkSaveResult);
+            }, 30000);
         } catch (error) {
             console.error('[贯通线路] 合并失败:', error);
             await showMsg('合并线路时发生错误: ' + (error.message || error));
@@ -732,6 +821,17 @@ export default {
         pidsState.appData = pidsState.store.list[idx];
         pidsState.rt.idx = 0;
         pidsState.rt.state = 0;
+        // 更新当前文件的路径信息
+        if (pidsState.appData && pidsState.appData.meta && pidsState.appData.meta.lineName) {
+            const filePath = pidsState.lineNameToFilePath[pidsState.appData.meta.lineName];
+            if (filePath) {
+                pidsState.currentFilePath = filePath;
+            } else {
+                pidsState.currentFilePath = null; // 如果没有找到路径，清空
+            }
+        } else {
+            pidsState.currentFilePath = null;
+        }
         saveCfg();
         sync();
     }
@@ -739,7 +839,7 @@ export default {
     // 通过线路名称切换线路
     async function switchLineByName(lineName) {
         console.log('[ConsolePage] switchLineByName 被调用, lineName:', lineName);
-        // 先刷新线路列表
+        // 先刷新“当前文件夹”的线路列表
         await fileIO.refreshLinesFromFolder(true);
         
         // 查找线路（移除颜色标记后比较）
@@ -749,7 +849,7 @@ export default {
         };
         const cleanRequestName = cleanName(lineName);
         
-        const idx = pidsState.store.list.findIndex(l => {
+        let idx = pidsState.store.list.findIndex(l => {
             if (!l.meta || !l.meta.lineName) return false;
             const cleanLineName = cleanName(l.meta.lineName);
             return cleanLineName === cleanRequestName || l.meta.lineName === lineName;
@@ -759,8 +859,93 @@ export default {
         if (idx >= 0) {
             switchLine(idx);
             console.log('[ConsolePage] switchLineByName 切换成功, 切换到索引:', idx);
+            return;
+        }
+        
+        console.warn('[ConsolePage] switchLineByName 在当前文件夹未找到线路:', lineName, '，尝试在其他文件夹中查找');
+        
+        // -------------------------
+        // 兜底方案：在所有线路文件夹中查找该线路
+        // 解决“线路文件不在当前文件夹里就无法切换”的问题
+        // -------------------------
+        if (!(window.electronAPI && window.electronAPI.lines && window.electronAPI.lines.folders)) {
+            console.warn('[ConsolePage] Electron 文件夹 API 不可用，无法在其他文件夹中查找线路');
+            return;
+        }
+        
+        try {
+            const foldersRes = await window.electronAPI.lines.folders.list();
+            if (!(foldersRes && foldersRes.ok && Array.isArray(foldersRes.folders))) {
+                console.warn('[ConsolePage] 获取线路文件夹列表失败或为空:', foldersRes);
+                return;
+            }
+            
+            const folders = foldersRes.folders;
+            let foundFolderId = null;
+            let foundFolderPath = null;
+            
+            for (const folder of folders) {
+                if (!folder || !folder.path || !folder.id) continue;
+                
+                try {
+                    const items = await window.electronAPI.lines.list(folder.path);
+                    if (!Array.isArray(items) || items.length === 0) continue;
+                    
+                    for (const it of items) {
+                        try {
+                            const res = await window.electronAPI.lines.read(it.name, folder.path);
+                            if (!(res && res.ok && res.content)) continue;
+                            
+                            const d = res.content;
+                            if (!d || !d.meta || !d.meta.lineName) continue;
+                            
+                            const cleanLineName = cleanName(d.meta.lineName);
+                            if (cleanLineName === cleanRequestName || d.meta.lineName === lineName) {
+                                foundFolderId = folder.id;
+                                foundFolderPath = folder.path;
+                                console.log('[ConsolePage] 在其他文件夹中找到了匹配线路:', d.meta.lineName, 'folderId:', folder.id, 'path:', folder.path);
+                            }
+                        } catch (e) {
+                            console.warn('[ConsolePage] 读取线路文件失败', it && it.name, e);
+                        }
+                        
+                        if (foundFolderId) break;
+                    }
+                } catch (e) {
+                    console.warn('[ConsolePage] 列出文件夹内线路失败，folder.path =', folder.path, e);
+                }
+                
+                if (foundFolderId) break;
+            }
+            
+            if (!foundFolderId || !foundFolderPath) {
+                console.warn('[ConsolePage] 在所有文件夹中都没有找到线路:', lineName);
+                return;
+            }
+            
+            // 找到了所在文件夹：更新当前文件夹ID，然后刷新线路列表
+            // 更新全局的 currentFolderId，确保后续保存时使用正确的文件夹
+            if (foundFolderId) {
+                pidsState.currentFolderId = foundFolderId;
+            }
+            // 直接从该物理路径刷新线路列表，然后再用原有逻辑切换
+            // 不再依赖主进程的"当前文件夹"配置，避免出现"文件夹不存在"等问题
+            await fileIO.refreshLinesFromFolder(true, foundFolderPath);
+            idx = pidsState.store.list.findIndex(l => {
+                if (!l.meta || !l.meta.lineName) return false;
+                const cleanLineName = cleanName(l.meta.lineName);
+                return cleanLineName === cleanRequestName || l.meta.lineName === lineName;
+            });
+            
+            console.log('[ConsolePage] switchLineByName 兜底查找结果, idx:', idx, '线路列表长度:', pidsState.store.list.length);
+            if (idx >= 0) {
+                switchLine(idx);
+                console.log('[ConsolePage] switchLineByName 兜底切换成功, 切换到索引:', idx);
         } else {
-            console.warn('[ConsolePage] switchLineByName 线路未找到:', lineName);
+                console.warn('[ConsolePage] 即使在找到的文件夹中刷新后仍未找到线路:', lineName);
+            }
+        } catch (e) {
+            console.warn('[ConsolePage] 在所有文件夹中查找线路时发生异常:', e);
         }
     }
     
@@ -1027,6 +1212,27 @@ export default {
                     position:'absolute', content:'', height:'18px', width:'18px', left:'3px', bottom:'3px',
                     backgroundColor:'white', transition:'.3s', borderRadius:'50%',
                     transform: pidsState.appData.meta.lineNameMerge ? 'translateX(20px)' : 'translateX(0)'
+                }"></span>
+              </label>
+            </div>
+            
+            <!-- 显示全部站点开关 -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; font-size:13px; color:var(--text);">
+              <div style="display:flex; flex-direction:column; gap:2px;">
+                <span style="font-weight:bold;">显示全部站点</span>
+                <span style="font-size:12px; color:var(--muted);">启用后，所有站点都会显示在屏幕上，使用 flexbox 布局均匀分布</span>
+              </div>
+              <label style="position:relative; display:inline-block; width:44px; height:24px; margin:0;">
+                <input type="checkbox" v-model="pidsState.appData.meta.showAllStations" @change="saveCfg()" style="opacity:0; width:0; height:0;">
+                <span :style="{
+                    position:'absolute', cursor:'pointer', top:0, left:0, right:0, bottom:0,
+                    backgroundColor: pidsState.appData.meta.showAllStations ? 'var(--accent)' : '#ccc',
+                    transition:'.3s', borderRadius:'24px'
+                }"></span>
+                <span :style="{
+                    position:'absolute', content:'', height:'18px', width:'18px', left:'3px', bottom:'3px',
+                    backgroundColor:'white', transition:'.3s', borderRadius:'50%',
+                    transform: pidsState.appData.meta.showAllStations ? 'translateX(20px)' : 'translateX(0)'
                 }"></span>
               </label>
             </div>

@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Metro PIDS - Jinan Style (Vue)</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <title>Metro PIDS - Display 2</title>
+    <link rel="stylesheet" href="../../assets/fontawesome/css/all.min.css" onerror="console.warn('[Display2] Font Awesome 加载失败，使用本地备用图标'); var fallback = document.createElement('link'); fallback.rel = 'stylesheet'; fallback.href = '../../assets/local-icons.css'; document.head.appendChild(fallback);">
     <script type="importmap">
     {
         "imports": {
@@ -15,27 +15,28 @@
     <style>
         /* ================= 全局样式 ================= */
         :root {
-            --theme: #009F4D;
-            --bg-body: #000;
-            --bg-panel: #fdfdfd;
-            --font-main: "Helvetica Neue", Helvetica, "Microsoft YaHei", Arial, sans-serif;
+            --bg-body: #f5f5f5;
+            --bg-panel: #ffffff;
+            --font-main: "Microsoft YaHei", "SimHei", Arial, sans-serif;
         }
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
             -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
             user-select: none;
         }
         body, html {
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background: var(--bg-body);
+            background: #ffffff; /* 白色背景 */
             font-family: var(--font-main);
         }
 
-        /* ================= 屏幕容器 (1900x600 适配) ================= */
+        /* ================= 屏幕容器 (1500x400 适配) ================= */
         #display-app {
             position: fixed;
             top: 0;
@@ -45,18 +46,18 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background: var(--bg-body);
+            background: #ffffff; /* 白色背景 */
             font-family: var(--font-main);
         }
         #scaler {
-            width: 1900px;
-            height: 600px;
-            background: var(--bg-panel);
+            width: 1500px;
+            height: 400px;
+            background: #ffffff; /* 白色背景 */
             position: relative;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            box-shadow: 0 0 100px #000;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
             transform-origin: center center;
         }
 
@@ -69,12 +70,15 @@
             width: 100%;
             z-index: 9999;
             background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             color: #fff;
             padding-left: 12px;
             font-size: 14px;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
             user-select: none;
             -webkit-app-region: drag;
             position: absolute;
@@ -86,364 +90,280 @@
             -webkit-app-region: no-drag;
         }
         
-        /* MacOS 适配：标题居中显示 */
         #display-titlebar.custom-titlebar.darwin {
             justify-content: center;
         }
         
-        /* Linux 适配：隐藏自定义标题栏 */
         #display-titlebar.custom-titlebar.linux {
             display: none;
         }
 
         /* ================= 顶部 Header ================= */
         .header {
-            height: 90px;
+            height: 45px;
             width: 100%;
             display: flex;
             align-items: center;
-            padding: 0 28px;
-            border-bottom: 2px solid #eee;
-            background: #fff;
+            justify-content: space-between;
+            padding: 0 20px;
+            background: #162b75; /* 深蓝色背景 */
             z-index: 10;
             margin-top: 35px; /* push header below custom titlebar */
-        }
-
-        /* 左侧：Logo & Line */
-        .h-left {
-            width: 220px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .logo-box {
-            font-size: 30px;
-            color: #1e3785;
-        }
-        .logo-txt {
-            display: flex;
-            flex-direction: column;
-        }
-        .lt-cn {
-            font-size: 17px;
-            font-weight: 900;
-            color: #1e3785;
-            letter-spacing: 1px;
-        }
-        .lt-en {
-            font-size: 9px;
-            font-weight: bold;
-            color: #1e3785;
-        }
-        .line-tag {
             color: #fff;
-            padding: 4px 10px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            margin-left: 10px;
-        }
-        .ln-num {
-            font-size: 29px;
-            font-weight: 900;
-            line-height: 1;
-        }
-        .ln-lbl {
-            display: flex;
-            flex-direction: column;
-            font-size: 8px;
-            font-weight: bold;
-            line-height: 1.1;
+            position: relative;
         }
 
-        /* 中间：动态信息 */
-        .h-center {
-            flex-grow: 1;
+        /* ================= 底部 Footer ================= */
+        .footer {
+            height: 45px;
+            width: 100%;
             display: flex;
+            align-items: center;
             justify-content: center;
-            gap: 48px;
-        }
-        .info-col {
-            display: flex;
-            flex-direction: column;
-        }
-        .lbl {
-            font-size: 11px;
-            color: #888;
-            font-weight: bold;
-            margin-bottom: 2px;
-        }
-        .val {
-            font-size: 23px;
-            font-weight: 900;
-        }
-        .val-en {
-            font-size: 11px;
-            margin-top: -2px;
-        }
-        .val.black {
-            color: #333;
-        }
-        .blink {
-            animation: blink 1s infinite;
-        }
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-
-        /* 右侧：开门/车厢 */
-        .h-right {
-            width: 220px;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-        }
-        .door-box {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border-left: 2px solid #ddd;
-            padding-left: 14px;
-        }
-        .door-txt {
-            text-align: right;
-        }
-        .dt-cn {
-            font-size: 19px;
-            font-weight: 900;
-            color: #333;
-        }
-        .dt-en {
-            font-size: 9px;
-            color: #666;
-        }
-        .door-icon {
-            width: 40px;
-            height: 40px;
-            background: #eee;
-            border-radius: 5px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 26px;
-            color: #c0392b;
-        }
-        .door-icon.door-open {
-            background: #27ae60;
+            padding: 0 20px;
+            background: #162b75; /* 深蓝色背景 */
+            z-index: 10;
             color: #fff;
-        }
-        .door-icon.door-close {
-            background: #eee;
-            color: #c0392b;
-        }
-
-        /* ================= 地图区域 (核心) ================= */
-        .map-area {
-            flex-grow: 1;
-            position: relative;
-            width: 100%;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            background: #fdfdfd;
-        }
-
-        .track-wrap {
-            position: absolute;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            padding-left: 0;
-            transition: none; /* 摄像机固定，不需要transition */
-            will-change: auto;
-        }
-
-        .rail-bg {
-            position: absolute;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            /* height 和 border-radius 由 Vue 动态设置 */
-            background: #e0e0e0;
-            z-index: 0;
-        }
-
-        /* 分段线路条 */
-        .rail-segment {
-            position: absolute;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            /* height 和 border-radius 由 Vue 动态设置 */
-            width: 0;
-            z-index: 1;
-            transition: background 0.5s linear;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
-        }
-
-        /* 线段上的箭头 */
-        .segment-arrow {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 0;
-            height: 0;
-            /* margin-left, border-top, border-bottom, border-left 由 Vue 动态设置 */
-            border-top-color: transparent;
-            border-bottom-color: transparent;
-            z-index: 3;
-            filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.2));
-        }
-
-        .rail-segment.segment-passed {
-            opacity: 1;
-        }
-
-        .rail-segment.segment-current {
-            opacity: 1;
-        }
-
-        /* 箭头指示器 */
-        .rail-arrow {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 0;
-            height: 0;
-            /* margin-left, border-top, border-bottom, border-left 由 Vue 动态设置 */
-            border-top-color: transparent;
-            border-bottom-color: transparent;
-            z-index: 2;
-            transition: left 0.5s linear;
-            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
-        }
-
-        .nodes-container {
-            display: flex;
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10;
-            pointer-events: none;
-        }
-
-        /* 站点容器 */
-        .st-node {
-            position: relative;
-            /* width 由 Vue 动态设置 */
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
-            margin-right: 0;
             flex-shrink: 0;
-            pointer-events: auto;
         }
-
-        /* 站名 (斜体) */
-        .st-txt {
-            position: absolute;
-            top: 38%;
-            left: 5px;
-            transform: rotate(-45deg);
-            transform-origin: bottom left;
-            width: 150px;
+        .header-left {
             display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            padding-bottom: 10px;
-        }
-        .st-cn {
-            font-size: 14px;
-            font-weight: bold;
-            color: #444;
-            transition: 0.3s;
-        }
-        .st-en {
-            font-size: 9px;
-            font-weight: 500;
-            color: #999;
-            margin-top: 1px;
-        }
-
-        /* 站点圆圈 */
-        .st-dot {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #fff;
-            border: 2.5px solid #ccc;
-            display: flex;
-            justify-content: center;
             align-items: center;
-            font-size: 9px;
-            font-weight: bold;
-            color: #aaa;
-            transition: 0.3s;
-            z-index: 15;
+            gap: 12px;
         }
-
-        /* 换乘标识 */
-        .xfer-row {
+        .header-route {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .header-end-station {
+            font-size: 16px;
+            font-weight: normal;
+            color: #fff;
+        }
+        .header-direction {
+            font-size: 16px;
+            font-weight: normal;
+        }
+        .legend {
             position: absolute;
-            top: 70%;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 2px;
-            margin-top: 8px;
+            gap: 15px;
+            font-size: 12px;
         }
-        .x-badge {
-            padding: 1px 4px;
-            border-radius: 2px;
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .legend-dot.passed {
+            background: #dc2626; /* 红色 */
+        }
+        .legend-dot.future {
+            background: #00e600; /* 绿色 */
+        }
+        .legend-text {
+            font-size: 12px;
             color: #fff;
-            font-size: 7px;
-            font-weight: bold;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
-        /* 状态样式逻辑 */
-        .st-node.passed .st-dot {
-            background: var(--theme);
-            border-color: var(--theme);
-            color: #fff;
+        /* ================= 线路区域 ================= */
+        .route-map {
+            flex-grow: 1;
+            position: relative;
+            height: 355px;
+            padding: 0 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: #ffffff; /* 白色背景 */
         }
-        .st-node.passed .st-cn {
-            color: #aaa;
+
+        /* 轨道线条背景容器 */
+        .track-lines {
+            position: absolute;
+            top: 50%;
+            left: 20px;
+            right: 20px;
+            height: 35px;
+            transform: translateY(-50%);
+            z-index: 0;
         }
-        .st-node.active .st-dot {
-            background: #fff;
-            border-color: var(--theme);
-            color: var(--theme);
-            width: 26px;
-            height: 26px;
-            font-size: 12px;
-            box-shadow: 0 0 8px var(--theme);
+
+        /* 上排路线（从左到中间） */
+        .track-line-top {
+            height: 4px;
+            background-color: #a5f3bc;
+            position: absolute;
+            top: 0;
+            left: 0;
+            border-radius: 2px;
         }
-        .st-node.active .st-cn {
-            color: var(--theme);
-            font-size: 23px;
-            font-weight: 900;
+
+        /* 下排路线（从中间到右） */
+        .track-line-bottom {
+            height: 4px;
+            background-color: #a5f3bc;
+            position: absolute;
+            bottom: 0;
+            border-radius: 2px;
         }
-        .st-node.active .st-en {
-            color: var(--theme);
-            font-weight: bold;
+
+        /* 中间半圆连接（半胶囊形状） */
+        .track-semicircle-svg {
+            position: absolute;
+            overflow: visible;
+            z-index: 1;
         }
-        .st-node.future .st-dot {
-            border-color: var(--theme);
-            color: var(--theme);
+
+        /* 左侧箭头 */
+        .arrow-left-bottom {
+            position: absolute;
+            left: 0;
+            bottom: -6px;
+            width: 0; 
+            height: 0; 
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+            border-right: 15px solid #a5f3bc;
+        }
+
+        /* 站点列表容器 */
+        .station-row {
+            position: relative;
+            width: 100%;
+            z-index: 1;
+            height: 100px;
+        }
+
+        /* 上排站点容器 */
+        .row-top {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-end;
+        }
+
+        /* 下排站点容器 */
+        .row-bottom {
+            margin-top: 15px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        /* 单个站点 */
+        .station {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 30px;
+            position: absolute;
+        }
+        
+        /* 上排站点：定位到底部 */
+        .row-top .station {
+            bottom: 0;
+        }
+        
+        /* 下排站点：定位到顶部 */
+        .row-bottom .station {
+            top: 0;
+        }
+
+        /* 站点文字 */
+        .station-name {
+            font-size: 16px;
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+            letter-spacing: 1px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .row-top .station-name {
+            padding-bottom: 12px;
+        }
+
+        .row-bottom .station-name {
+            padding-top: 12px;
+        }
+
+        /* 已过站站点文字：黑色（上排和下排都适用） */
+        .station.passed .station-name {
+            color: #000000;
+        }
+
+        /* 未过站站点文字：黑色（上排和下排都适用） */
+        .station.future .station-name {
+            color: #000000;
+        }
+
+        /* 站点圆点 */
+        .station-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 2px rgba(0,0,0,0.2);
+            position: absolute;
+            z-index: 10;
+            left: 50%;
+        }
+
+        /* 上排圆点：统一高度，定位到轨道线位置（轨道线在track-lines容器的top: 0） */
+        .row-top .station-dot {
+            bottom: 0;
+            transform: translateX(-50%) translateY(50%);
+        }
+        .row-top .station-dot.passed {
+            background-color: #dc2626; /* 已过站：红色 */
+        }
+        .row-top .station-dot.future {
+            background-color: #00e600; /* 未过站：绿色 */
+        }
+
+        /* 下排圆点：统一高度，定位到轨道线位置（轨道线在track-lines容器的bottom: 0） */
+        .row-bottom .station-dot {
+            top: 0;
+            transform: translateX(-50%) translateY(-50%);
+        }
+        .row-bottom .station-dot.passed {
+            background-color: #dc2626; /* 已过站：红色 */
+        }
+        .row-bottom .station-dot.future {
+            background-color: #00e600; /* 未过站：绿色 */
+        }
+
+        /* 当前站点指示器（白色三角形） */
+        .current-indicator {
+            position: absolute;
+            z-index: 20;
+            pointer-events: none;
+        }
+        .row-top .current-indicator {
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 10px solid white;
+        }
+        .row-bottom .current-indicator {
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 10px solid white;
         }
     </style>
 </head>

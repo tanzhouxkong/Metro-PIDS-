@@ -47,6 +47,8 @@ export default {
     const contextMenu = ref({ visible: false, x: 0, y: 0, folderId: null, folderName: null }); // 文件夹右键菜单状态
     const lineContextMenu = ref({ visible: false, x: 0, y: 0, line: null }); // 线路右键菜单状态
     const clipboard = ref({ type: null, line: null, sourceFolderId: null, sourceFolderPath: null }); // 剪贴板状态（用于复制/剪贴）
+    const isSavingThroughLine = ref(false); // 是否正在保存贯通线路
+    const pendingThroughLineInfo = ref(null); // 待保存的贯通线路信息
 
     // 获取首末站信息
     function getStationInfo(lineData) {
@@ -82,6 +84,18 @@ export default {
             if (parsed.list && Array.isArray(parsed.list)) {
               currentLines.value = parsed.list.map((l, idx) => {
                 const stationInfo = getStationInfo(l);
+                // 识别贯通线路：需要满足以下条件之一：
+                // 1. throughOperationEnabled 明确为 true
+                // 2. throughLineSegments 存在且至少有2个元素（贯通线路至少需要2条线路）
+                // 3. 线路名称中包含"(贯通)"或"（贯通）"字样（这是创建贯通线路时的命名规则）
+                const lineName = l.meta?.lineName || '';
+                const hasThroughInName = lineName.includes('(贯通)') || lineName.includes('（贯通）');
+                const hasValidSegments = l.meta?.throughLineSegments && 
+                                        Array.isArray(l.meta.throughLineSegments) && 
+                                        l.meta.throughLineSegments.length >= 2;
+                // 更严格的判断：必须满足 throughOperationEnabled === true 或者（有有效段且名称包含贯通）
+                const isThroughLine = l.meta?.throughOperationEnabled === true || 
+                                     (hasValidSegments && hasThroughInName);
                 return {
                   name: l.meta?.lineName || '未命名线路',
                   filePath: '',
@@ -89,7 +103,8 @@ export default {
                   index: idx,
                   themeColor: l.meta?.themeColor || '#5F27CD',
                   firstStation: stationInfo.first,
-                  lastStation: stationInfo.last
+                  lastStation: stationInfo.last,
+                  isThroughLine: isThroughLine
                 };
               });
             }
@@ -149,13 +164,26 @@ export default {
                 const d = res.content;
                 if (d && d.meta && Array.isArray(d.stations)) {
                   const stationInfo = getStationInfo(d);
+                  // 识别贯通线路：需要满足以下条件之一：
+                  // 1. throughOperationEnabled 明确为 true
+                  // 2. throughLineSegments 存在且至少有2个元素（贯通线路至少需要2条线路）
+                  // 3. 线路名称中包含"(贯通)"或"（贯通）"字样（这是创建贯通线路时的命名规则）
+                  const lineName = d.meta.lineName || '';
+                  const hasThroughInName = lineName.includes('(贯通)') || lineName.includes('（贯通）');
+                  const hasValidSegments = d.meta.throughLineSegments && 
+                                          Array.isArray(d.meta.throughLineSegments) && 
+                                          d.meta.throughLineSegments.length >= 2;
+                  // 更严格的判断：必须满足 throughOperationEnabled === true 或者（有有效段且名称包含贯通）
+                  const isThroughLine = d.meta.throughOperationEnabled === true || 
+                                       (hasValidSegments && hasThroughInName);
                   lines.push({
                     name: d.meta.lineName || '未命名线路',
                     filePath: it.name,
                     data: d,
                     themeColor: d.meta.themeColor || '#5F27CD',
                     firstStation: stationInfo.first,
-                    lastStation: stationInfo.last
+                    lastStation: stationInfo.last,
+                    isThroughLine: isThroughLine // 标记为贯通线路
                   });
                 }
               }
@@ -178,6 +206,16 @@ export default {
     // 选择文件夹
     async function selectFolder(folderId) {
       if (folderId === selectedFolderId.value) return;
+      
+      // 在保存贯通线路模式下，不允许选择默认文件夹（直接阻止，不显示提示）
+      if (isSavingThroughLine.value) {
+        const folder = folders.value.find(f => f.id === folderId);
+        if (folder && (folder.id === 'default' || folder.name === '默认')) {
+          // 直接返回，不执行任何操作
+          return;
+        }
+      }
+      
       selectedFolderId.value = folderId;
       await loadLinesFromFolder(folderId);
     }
@@ -193,8 +231,13 @@ export default {
 
     // 应用选中的线路
     async function applySelectedLine() {
-      if (!selectedLine.value) return;
-      
+      // 先快照一份，避免中途被清空导致读取 name 报错
+      const line = selectedLine.value;
+      if (!line || !line.name) {
+        console.warn('[线路管理器] applySelectedLine: invalid selectedLine', line);
+        return;
+      }
+
       try {
         // 确保当前文件夹已切换并加载
         if (selectedFolderId.value !== currentFolderId.value) {
@@ -205,8 +248,8 @@ export default {
         if (window.electronAPI && window.electronAPI.switchLine) {
           // 获取贯通线路选择目标（如果有）
           const target = localStorage.getItem('throughOperationSelectorTarget');
-          console.log('[线路管理器] applySelectedLine 调用 switchLine, lineName:', selectedLine.value.name, 'target:', target);
-          const result = await window.electronAPI.switchLine(selectedLine.value.name);
+          console.log('[线路管理器] applySelectedLine 调用 switchLine, lineName:', line.name, 'target:', target);
+          const result = await window.electronAPI.switchLine(line.name);
           if (result && result.ok) {
             // 切换成功，关闭窗口
             if (window.electronAPI.closeWindow) {
@@ -215,7 +258,7 @@ export default {
           }
         } else {
           // 网页环境：通过 localStorage 和 postMessage 通知主窗口
-          const lineName = selectedLine.value.name;
+          const lineName = line.name;
           const target = localStorage.getItem('throughOperationSelectorTarget');
           
           // 存储线路名称和目标到 localStorage，供主窗口读取
@@ -757,9 +800,344 @@ export default {
       return typeof window !== 'undefined' && window.electronAPI && window.electronAPI.lines && window.electronAPI.lines.folders;
     });
 
+    // 保存贯通线路
+    async function saveThroughLine() {
+      try {
+        console.log('[线路管理器] saveThroughLine 开始执行');
+        
+        // 检查是否有待保存的贯通线路数据
+        const pendingDataStr = localStorage.getItem('pendingThroughLineData');
+        if (!pendingDataStr) {
+          console.warn('[线路管理器] 未找到待保存的贯通线路数据');
+          return;
+        }
+        
+        const pendingData = JSON.parse(pendingDataStr);
+        const { lineData, lineName, cleanLineName, validSegments } = pendingData;
+        
+        console.log('[线路管理器] 贯通线路信息:', { 
+          lineName, 
+          segmentCount: validSegments ? validSegments.length : 0,
+          foldersCount: folders.value.length
+        });
+        
+        // 设置保存模式状态
+        isSavingThroughLine.value = true;
+        pendingThroughLineInfo.value = {
+          lineName: lineName,
+          segmentCount: validSegments ? validSegments.length : 0
+        };
+        
+        console.log('[线路管理器] 状态已设置, isSavingThroughLine:', isSavingThroughLine.value);
+        
+        // 等待状态更新
+        await nextTick();
+        
+        // 检查是否有可用的文件夹（排除默认文件夹）
+        const availableFolders = folders.value.filter(f => f.id !== 'default' && f.name !== '默认');
+        
+        console.log('[线路管理器] 可用文件夹数量:', availableFolders.length);
+        
+        if (availableFolders.length === 0) {
+          // 没有其他文件夹，让用户创建新文件夹
+          const folderName = await window.__lineManagerDialog.prompt(
+            '当前没有可用的文件夹，请创建一个新文件夹用于保存贯通线路：',
+            '新建文件夹',
+            '创建文件夹'
+          );
+          
+          if (!folderName || !folderName.trim()) {
+            // 用户取消，通知主窗口
+            isSavingThroughLine.value = false;
+            pendingThroughLineInfo.value = null;
+            localStorage.setItem('throughLineSaveResult', JSON.stringify({ success: false, error: 'cancelled' }));
+            if (window.electronAPI && window.electronAPI.closeWindow) {
+              await window.electronAPI.closeWindow();
+            }
+            return;
+          }
+          
+          // 创建新文件夹
+          const addRes = await window.electronAPI.lines.folders.add(folderName.trim());
+          if (addRes && addRes.ok) {
+            await loadFolders();
+            // 使用新创建的文件夹
+            const newFolder = folders.value.find(f => f.id === addRes.folderId);
+            if (newFolder) {
+              await doSaveThroughLine(lineData, cleanLineName, newFolder);
+            } else {
+              localStorage.setItem('throughLineSaveResult', JSON.stringify({ success: false, error: '创建文件夹后未找到' }));
+              if (window.electronAPI && window.electronAPI.closeWindow) {
+                await window.electronAPI.closeWindow();
+              }
+            }
+          } else {
+            localStorage.setItem('throughLineSaveResult', JSON.stringify({ success: false, error: addRes && addRes.error || '创建文件夹失败' }));
+            if (window.electronAPI && window.electronAPI.closeWindow) {
+              await window.electronAPI.closeWindow();
+            }
+          }
+          return;
+        }
+        
+        // 如果只有一个文件夹，等待一小段时间让横幅显示，然后直接使用
+        if (availableFolders.length === 1) {
+          await new Promise(resolve => setTimeout(resolve, 800)); // 让用户看到横幅
+          await doSaveThroughLine(lineData, cleanLineName, availableFolders[0]);
+          return;
+        }
+        
+        // 多个文件夹，等待一小段时间让横幅显示，然后显示选择对话框
+        await new Promise(resolve => setTimeout(resolve, 800)); // 让用户看到横幅
+        const selectedFolder = await showFolderSelector(availableFolders, '请选择保存贯通线路的文件夹：', lineName);
+        if (selectedFolder) {
+          await doSaveThroughLine(lineData, cleanLineName, selectedFolder);
+        } else {
+          // 用户取消
+          isSavingThroughLine.value = false;
+          pendingThroughLineInfo.value = null;
+          localStorage.setItem('throughLineSaveResult', JSON.stringify({ success: false, error: 'cancelled' }));
+          if (window.electronAPI && window.electronAPI.closeWindow) {
+            await window.electronAPI.closeWindow();
+          }
+        }
+      } catch (e) {
+        console.error('保存贯通线路失败:', e);
+        isSavingThroughLine.value = false;
+        pendingThroughLineInfo.value = null;
+        localStorage.setItem('throughLineSaveResult', JSON.stringify({ success: false, error: e.message || e }));
+        if (window.electronAPI && window.electronAPI.closeWindow) {
+          await window.electronAPI.closeWindow();
+        }
+      }
+    }
+    
+    // 执行保存贯通线路
+    async function doSaveThroughLine(lineData, cleanLineName, folder) {
+      try {
+        // 检查是否是默认文件夹，如果是则拒绝保存
+        if (folder.id === 'default' || folder.name === '默认') {
+          if (window.__lineManagerDialog) {
+            await window.__lineManagerDialog.alert('不允许保存到默认文件夹，请选择其他文件夹', '提示');
+          }
+          return;
+        }
+        
+        const targetFileName = cleanLineName.replace(/[<>:"/\\|?*]/g, '').trim() + '.json';
+        const saveRes = await window.electronAPI.lines.save(targetFileName, lineData, folder.path);
+        
+        if (saveRes && saveRes.ok) {
+          // 保存成功
+          isSavingThroughLine.value = false;
+          pendingThroughLineInfo.value = null;
+          localStorage.setItem('throughLineSaveResult', JSON.stringify({
+            success: true,
+            folderId: folder.id,
+            folderPath: folder.path,
+            filePath: saveRes.path || (folder.path + (folder.path.includes('\\') ? '\\' : '/') + targetFileName)
+          }));
+          
+          // 刷新当前文件夹的线路列表
+          await loadLinesFromFolder(folder.id);
+          
+          // 不在这里显示提示，让主窗口显示系统通知
+          // 关闭窗口（在保存结果写入 localStorage 之后）
+          if (window.electronAPI && window.electronAPI.closeWindow) {
+            // 等待一小段时间确保 localStorage 已写入
+            await new Promise(resolve => setTimeout(resolve, 100));
+            await window.electronAPI.closeWindow();
+          }
+        } else {
+          isSavingThroughLine.value = false;
+          pendingThroughLineInfo.value = null;
+          localStorage.setItem('throughLineSaveResult', JSON.stringify({
+            success: false,
+            error: saveRes && saveRes.error || '保存失败'
+          }));
+          if (window.electronAPI && window.electronAPI.closeWindow) {
+            await window.electronAPI.closeWindow();
+          }
+        }
+      } catch (e) {
+        console.error('执行保存失败:', e);
+        localStorage.setItem('throughLineSaveResult', JSON.stringify({ success: false, error: e.message || e }));
+        if (window.electronAPI && window.electronAPI.closeWindow) {
+          await window.electronAPI.closeWindow();
+        }
+      }
+    }
+    
+    // 显示文件夹选择器
+    async function showFolderSelector(foldersList, title, lineName = '') {
+      return new Promise((resolve) => {
+        const dialog = document.createElement('div');
+        dialog.style.cssText = 'position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:10000; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px);';
+        
+        const dialogContent = document.createElement('div');
+        dialogContent.style.cssText = 'background:var(--card, #fff); border-radius:12px; width:90%; max-width:500px; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 8px 32px rgba(0,0,0,0.3); overflow:hidden;';
+        
+        const header = document.createElement('div');
+        header.style.cssText = 'padding:20px; border-bottom:1px solid var(--divider, #e0e0e0); display:flex; flex-direction:column; gap:12px; flex-shrink:0;';
+        header.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; font-size:18px; font-weight:bold; color:var(--text, #333);">${title || '选择文件夹'}</h3>
+            <button id="closeBtn" style="background:none; border:none; color:var(--muted, #666); cursor:pointer; font-size:24px; padding:0; width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; transition:background 0.2s;">&times;</button>
+          </div>
+          ${lineName ? `
+          <div style="padding:12px; background:linear-gradient(135deg, #FF9F43 0%, #FFC371 100%); border-radius:8px; display:flex; align-items:center; gap:12px; box-shadow:0 2px 8px rgba(255,159,67,0.2);">
+            <i class="fas fa-exchange-alt" style="font-size:20px; color:#fff;"></i>
+            <div style="flex:1;">
+              <div style="font-size:14px; font-weight:bold; color:#fff; margin-bottom:4px;">保存贯通线路</div>
+              <div style="font-size:12px; color:rgba(255,255,255,0.9);">线路名称: ${lineName}</div>
+            </div>
+          </div>
+          ` : ''}
+        `;
+        
+        const folderList = document.createElement('div');
+        folderList.style.cssText = 'flex:1; overflow-y:auto; padding:12px; max-height:400px;';
+        
+        let selectedFolder = null;
+        
+        foldersList.forEach((folder) => {
+          const folderCard = document.createElement('div');
+          folderCard.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:12px; margin-bottom:8px; background:var(--card, #fff); border-radius:6px; border:2px solid var(--divider, #e0e0e0); cursor:pointer; transition:all 0.2s; user-select:none;';
+          
+          folderCard.innerHTML = `
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:14px; font-weight:bold; color:var(--text, #333); margin-bottom:4px;">
+                <i class="fas fa-folder" style="margin-right:8px; color:var(--accent, #12b7f5);"></i>
+                ${folder.name}
+              </div>
+              <div style="font-size:12px; color:var(--muted, #666); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                ${folder.path || ''}
+              </div>
+            </div>
+          `;
+          
+          folderCard.addEventListener('click', () => {
+            selectedFolder = folder;
+            foldersList.forEach((f) => {
+              const card = folderList.querySelector(`[data-folder-id="${f.id}"]`);
+              if (card) {
+                if (f.id === folder.id) {
+                  card.style.borderColor = '#FF9F43';
+                  card.style.background = 'rgba(255,159,67,0.1)';
+                  card.style.boxShadow = '0 2px 8px rgba(255,159,67,0.3)';
+                } else {
+                  card.style.borderColor = 'var(--divider, #e0e0e0)';
+                  card.style.background = 'var(--card, #fff)';
+                  card.style.boxShadow = 'none';
+                }
+              }
+            });
+          });
+          
+          folderCard.addEventListener('mouseenter', () => {
+            if (selectedFolder?.id !== folder.id) {
+              folderCard.style.background = 'var(--bg, #f5f5f5)';
+            }
+          });
+          folderCard.addEventListener('mouseleave', () => {
+            if (selectedFolder?.id !== folder.id) {
+              folderCard.style.background = 'var(--card, #fff)';
+            }
+          });
+          
+          folderCard.setAttribute('data-folder-id', folder.id);
+          folderList.appendChild(folderCard);
+        });
+        
+        const buttonBar = document.createElement('div');
+        buttonBar.style.cssText = 'padding:16px 20px; border-top:1px solid var(--divider, #e0e0e0); display:flex; justify-content:flex-end; gap:12px; flex-shrink:0;';
+        buttonBar.innerHTML = `
+          <button id="cancelBtn" style="padding:8px 20px; background:#fff; color:#333; border:1px solid #d9d9d9; border-radius:4px; font-size:14px; cursor:pointer; transition:all 0.2s; min-width:60px;">取消</button>
+          <button id="confirmBtn" style="padding:8px 20px; background:#1677ff; color:#fff; border:none; border-radius:4px; font-size:14px; cursor:pointer; transition:all 0.2s; font-weight:500; min-width:60px;">确定</button>
+        `;
+        
+        dialogContent.appendChild(header);
+        dialogContent.appendChild(folderList);
+        dialogContent.appendChild(buttonBar);
+        dialog.appendChild(dialogContent);
+        document.body.appendChild(dialog);
+        
+        const closeDialog = () => {
+          document.body.removeChild(dialog);
+        };
+        
+        header.querySelector('#closeBtn').addEventListener('click', () => {
+          closeDialog();
+          resolve(null);
+        });
+        
+        buttonBar.querySelector('#cancelBtn').addEventListener('click', () => {
+          closeDialog();
+          resolve(null);
+        });
+        
+        buttonBar.querySelector('#confirmBtn').addEventListener('click', () => {
+          if (selectedFolder) {
+            closeDialog();
+            resolve(selectedFolder);
+          } else {
+            alert('请先选择一个文件夹');
+          }
+        });
+        
+        dialog.addEventListener('click', (e) => {
+          if (e.target === dialog) {
+            closeDialog();
+            resolve(null);
+          }
+        });
+      });
+    }
+
+    // 手动保存贯通线路（用户点击按钮触发）
+    async function handleSaveThroughLine() {
+      await saveThroughLine();
+    }
+    
+    // 检查是否是保存贯通线路模式
+    async function checkSaveThroughLineMode() {
+      const target = localStorage.getItem('throughOperationSelectorTarget');
+      const pendingData = localStorage.getItem('pendingThroughLineData');
+      
+      if (target === 'save-through-line' && pendingData) {
+        try {
+          const pendingDataObj = JSON.parse(pendingData);
+          const { lineName, validSegments } = pendingDataObj;
+          
+          // 设置保存模式状态（仅显示引导，不自动执行）
+          isSavingThroughLine.value = true;
+          pendingThroughLineInfo.value = {
+            lineName: lineName,
+            segmentCount: validSegments ? validSegments.length : 0
+          };
+          
+          // 如果当前选中的是默认文件夹，自动切换到第一个非默认文件夹
+          await nextTick();
+          if (selectedFolderId.value === 'default' || 
+              folders.value.find(f => f.id === selectedFolderId.value)?.name === '默认') {
+            const firstNonDefaultFolder = folders.value.find(f => f.id !== 'default' && f.name !== '默认');
+            if (firstNonDefaultFolder) {
+              selectedFolderId.value = firstNonDefaultFolder.id;
+              await loadLinesFromFolder(firstNonDefaultFolder.id);
+            }
+          }
+        } catch (e) {
+          console.error('解析待保存数据失败:', e);
+        }
+      }
+    }
+
     // 组件挂载时加载数据
-    onMounted(() => {
-      loadFolders();
+    onMounted(async () => {
+      await loadFolders();
+      
+      // 检查是否是保存贯通线路模式（仅设置状态，不自动执行）
+      await nextTick();
+      await checkSaveThroughLineMode();
     });
 
     // 计算当前活动的文件夹ID
@@ -775,6 +1153,8 @@ export default {
       loading,
       selectedLine,
       activeFolderId,
+      isSavingThroughLine,
+      pendingThroughLineInfo,
       selectFolder,
       toggleLineSelection,
       applySelectedLine,
@@ -790,6 +1170,7 @@ export default {
       parseColorMarkup,
       hasFoldersAPI,
       getStationInfo,
+      handleSaveThroughLine,
       contextMenu,
       lineContextMenu,
       showLineContextMenu,
@@ -810,6 +1191,25 @@ export default {
   template: `
     <div style="width:100vw; height:100vh; display:flex; flex-direction:column; background:transparent;">
       <LineManagerTopbar />
+      <!-- 保存贯通线路引导横幅 -->
+      <div v-if="isSavingThroughLine && pendingThroughLineInfo" style="padding:16px 20px; background:linear-gradient(135deg, #FF9F43 0%, #FFC371 100%); border-bottom:2px solid rgba(255,255,255,0.2); box-shadow:0 2px 8px rgba(255,159,67,0.3); display:flex; align-items:center; gap:16px; flex-shrink:0;">
+        <div style="flex-shrink:0;">
+          <i class="fas fa-exchange-alt" style="font-size:24px; color:#fff;"></i>
+        </div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:16px; font-weight:bold; color:#fff; margin-bottom:4px;">正在保存贯通线路</div>
+          <div style="font-size:13px; color:rgba(255,255,255,0.95);">
+            线路名称: <strong>{{ pendingThroughLineInfo.lineName }}</strong>
+            <span v-if="pendingThroughLineInfo.segmentCount > 0" style="margin-left:12px;">
+              线路段数: <strong>{{ pendingThroughLineInfo.segmentCount }}</strong>
+            </span>
+          </div>
+          <div style="font-size:12px; color:rgba(255,255,255,0.85); margin-top:6px; display:flex; align-items:center; gap:8px;">
+            <i class="fas fa-info-circle"></i>
+            <span>请点击右下角的"保存贯通线路"按钮，选择文件夹并保存</span>
+          </div>
+        </div>
+      </div>
       <!-- Main Content (Two Column Layout - QQ Style) -->
       <div style="display:flex; flex:1; overflow:hidden; background:transparent;">
         <!-- Left Sidebar: Folders (类似QQ群列表) -->
@@ -818,24 +1218,29 @@ export default {
             <div 
               v-for="folder in folders" 
               :key="folder.id"
-              @click="selectFolder(folder.id)"
+              @click="isSavingThroughLine && (folder.id === 'default' || folder.name === '默认') ? null : selectFolder(folder.id)"
               @contextmenu.prevent="showContextMenu($event, folder)"
               :style="{
                 padding: '10px 16px',
-                cursor: 'pointer',
+                cursor: (isSavingThroughLine && (folder.id === 'default' || folder.name === '默认')) ? 'not-allowed' : 'pointer',
                 background: selectedFolderId === folder.id ? 'var(--lm-sidebar-item-active, #e8e8e8)' : 'transparent',
                 transition: 'background 0.2s',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
-                borderLeft: selectedFolderId === folder.id ? '3px solid var(--accent, #12b7f5)' : '3px solid transparent'
+                borderLeft: selectedFolderId === folder.id ? '3px solid var(--accent, #12b7f5)' : '3px solid transparent',
+                opacity: (isSavingThroughLine && (folder.id === 'default' || folder.name === '默认')) ? 0.5 : 1
               }"
-              @mouseover="$event.target.style.background = selectedFolderId === folder.id ? 'var(--lm-sidebar-item-active, #e8e8e8)' : 'var(--lm-sidebar-item-hover, #f0f0f0)'"
-              @mouseout="$event.target.style.background = selectedFolderId === folder.id ? 'var(--lm-sidebar-item-active, #e8e8e8)' : 'transparent'"
+              @mouseover="(e) => { if (!(isSavingThroughLine && (folder.id === 'default' || folder.name === '默认'))) { e.target.style.background = selectedFolderId === folder.id ? 'var(--lm-sidebar-item-active, #e8e8e8)' : 'var(--lm-sidebar-item-hover, #f0f0f0)'; } }"
+              @mouseout="(e) => { e.target.style.background = selectedFolderId === folder.id ? 'var(--lm-sidebar-item-active, #e8e8e8)' : 'transparent'; }"
+              :title="(isSavingThroughLine && (folder.id === 'default' || folder.name === '默认')) ? '保存贯通线路时不允许选择默认文件夹' : ''"
             >
               <i class="fas fa-folder" :style="{fontSize:'16px', color: selectedFolderId === folder.id ? 'var(--accent, #12b7f5)' : 'var(--muted, #666)'}"></i>
               <div style="flex:1; min-width:0;">
-                <div style="font-size:14px; font-weight:500; color:var(--text, #333); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ folder.name }}</div>
+                <div style="font-size:14px; font-weight:500; color:var(--text, #333); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                  {{ folder.name }}
+                  <span v-if="isSavingThroughLine && (folder.id === 'default' || folder.name === '默认')" style="margin-left:6px; font-size:11px; color:var(--muted, #999);">(不可用)</span>
+                </div>
               </div>
             </div>
           </div>
@@ -903,8 +1308,10 @@ export default {
                 
                 <!-- 线路名称 -->
                 <div style="width:200px; min-width:200px; display:flex; align-items:center; gap:10px;" @click="toggleLineSelection(line)">
-                  <i class="fas fa-subway" style="font-size:16px; color:var(--muted, #999);"></i>
-                  <div style="font-size:14px; font-weight:500; color:var(--text, #333); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" v-html="parseColorMarkup(line.name)"></div>
+                  <i :class="line.isThroughLine ? 'fas fa-exchange-alt' : 'fas fa-subway'" :style="{fontSize:'16px', color: line.isThroughLine ? '#FF9F43' : 'var(--muted, #999)'}"></i>
+                  <div style="font-size:14px; font-weight:500; color:var(--text, #333); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:6px;" v-html="parseColorMarkup(line.name)">
+                  </div>
+                  <span v-if="line.isThroughLine" style="background:#FF9F43; color:#fff; padding:2px 6px; border-radius:3px; font-size:10px; font-weight:bold; white-space:nowrap;">贯通</span>
                 </div>
                 
                 <!-- 颜色 -->
@@ -971,7 +1378,35 @@ export default {
               
               <!-- 右侧操作按钮 -->
               <div style="display:flex; align-items:center; gap:12px;">
+                <!-- 保存贯通线路按钮（仅在保存模式下显示） -->
                 <button 
+                  v-if="isSavingThroughLine"
+                  @click="handleSaveThroughLine()"
+                  :style="{
+                    padding: '10px 24px',
+                    background: 'var(--btn-orange-bg, #FF9F43)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 2px 8px rgba(255, 159, 67, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }"
+                  @mouseover="(e) => { e.target.style.background='#FF8C2E'; e.target.style.boxShadow='0 4px 12px rgba(255, 159, 67, 0.4)'; }"
+                  @mouseout="(e) => { e.target.style.background='var(--btn-orange-bg, #FF9F43)'; e.target.style.boxShadow='0 2px 8px rgba(255, 159, 67, 0.3)'; }"
+                >
+                  <i class="fas fa-save" style="font-size:14px;"></i>
+                  保存贯通线路
+                </button>
+                
+                <!-- 普通模式：使用当前线路按钮 -->
+                <button 
+                  v-else
                   @click="applySelectedLine()"
                   :disabled="!selectedLine"
                   :style="{

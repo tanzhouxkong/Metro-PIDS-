@@ -88,6 +88,11 @@ export default {
     // 兼容旧数据，补齐 serviceMode
     if (!pidsState.appData.meta.serviceMode) pidsState.appData.meta.serviceMode = 'normal';
     
+    // 初始化显示全部站点选项
+    if (pidsState.appData.meta.showAllStations === undefined) {
+        pidsState.appData.meta.showAllStations = false;
+    }
+    
     // 初始化贯通线路设置字段
     // 兼容旧版本：如果存在 lineALineName 和 lineBLineName，转换为新格式
     if (pidsState.appData.meta.throughLineSegments === undefined) {
@@ -1132,6 +1137,31 @@ export default {
         
         // 初始化贯通线路设置
         initThroughOperationLines();
+        
+        // 监听来自API的编辑显示端请求
+        if (typeof window !== 'undefined' && window.electronAPI && window.electronAPI.onEditDisplayRequest) {
+            try {
+                window.electronAPI.onEditDisplayRequest(async (displayId, displayData) => {
+                    try {
+                        const result = await editDisplayInternal(displayId, displayData);
+                        // 发送响应回主进程
+                        if (window.electronAPI.sendEditDisplayResult) {
+                            window.electronAPI.sendEditDisplayResult(result);
+                        }
+                    } catch (e) {
+                        console.error('[SlidePanel] API编辑显示端失败:', e);
+                        if (window.electronAPI.sendEditDisplayResult) {
+                            window.electronAPI.sendEditDisplayResult({ 
+                                ok: false, 
+                                error: String(e.message || e) 
+                            });
+                        }
+                    }
+                });
+            } catch (e) {
+                console.warn('无法设置API编辑显示端监听:', e);
+            }
+        }
     });
 
     // 打开线路管理器
@@ -1863,6 +1893,18 @@ export default {
                     displays: { ...settings.display.displays }
                 });
                 
+                // 只有切换到显示器1时才同步显示端设置到线路数据
+                if (displayId === 'display-1' && pidsState && pidsState.appData && pidsState.appData.meta && targetDisplay) {
+                    if (targetDisplay.lineNameMerge !== undefined) {
+                        pidsState.appData.meta.lineNameMerge = targetDisplay.lineNameMerge;
+                    }
+                    if (targetDisplay.showAllStations !== undefined) {
+                        pidsState.appData.meta.showAllStations = targetDisplay.showAllStations;
+                    }
+                    // 同步到显示端
+                    sync();
+                }
+                
                 saveSettings();
                 
                 // 处理显示窗口切换
@@ -2068,20 +2110,81 @@ export default {
             await showMsg(`显示端 "${name}" 已添加并设为当前活动显示端`);
         }
 
-        // 编辑显示端
+        // 编辑显示端（内部函数，供UI和API调用）
+        async function editDisplayInternal(displayId, displayData = null) {
+            const display = settings.display.displays[displayId];
+            if (!display) {
+                return { ok: false, error: '显示端不存在' };
+            }
+            
+            // 如果提供了displayData，说明是API调用，直接更新
+            if (displayData) {
+                // 检查是否为系统显示器
+                if (display.isSystem) {
+                    // 系统显示器只能更新开关值（仅显示器1）
+                    if (displayId === 'display-1') {
+                        if (displayData.lineNameMerge !== undefined) {
+                            display.lineNameMerge = displayData.lineNameMerge;
+                        }
+                        if (displayData.showAllStations !== undefined) {
+                            display.showAllStations = displayData.showAllStations;
+                        }
+                        
+                        // 如果这是当前活动的显示端，同步设置到线路数据
+                        if (displayId === settings.display.currentDisplayId) {
+                            if (pidsState && pidsState.appData && pidsState.appData.meta) {
+                                if (displayData.lineNameMerge !== undefined) {
+                                    pidsState.appData.meta.lineNameMerge = displayData.lineNameMerge;
+                                }
+                                if (displayData.showAllStations !== undefined) {
+                                    pidsState.appData.meta.showAllStations = displayData.showAllStations;
+                                }
+                                sync();
+                            }
+                        }
+                    }
+                } else {
+                    // 非系统显示器，更新所有字段
+                    if (displayData.name !== undefined) display.name = displayData.name;
+                    if (displayData.source !== undefined) display.source = displayData.source;
+                    if (displayData.url !== undefined) display.url = displayData.url;
+                    if (displayData.description !== undefined) display.description = displayData.description;
+                    // 只有显示器1才保存开关值
+                    if (displayId === 'display-1') {
+                        if (displayData.lineNameMerge !== undefined) {
+                            display.lineNameMerge = displayData.lineNameMerge;
+                        }
+                        if (displayData.showAllStations !== undefined) {
+                            display.showAllStations = displayData.showAllStations;
+                        }
+                    }
+                }
+                
+                // 强制更新显示端状态确保响应性
+                displayState.displays = { ...settings.display.displays };
+                saveSettings();
+                
+                return { ok: true, message: `显示端 "${display.name}" 已更新` };
+            }
+            
+            // 否则是UI调用，显示编辑弹窗
+            return null;
+        }
+
+        // 编辑显示端（UI调用）
         async function editDisplay(displayId) {
             const display = settings.display.displays[displayId];
             if (!display) return;
-            
-            // 检查是否为系统显示器
-            if (display.isSystem) {
-                await showMsg('系统显示器不允许编辑配置');
-                return;
-            }
 
+            // 获取当前显示端的设置，如果没有则使用默认值
+            const lineNameMerge = display.lineNameMerge !== undefined ? display.lineNameMerge : false;
+            const showAllStations = display.showAllStations !== undefined ? display.showAllStations : false;
+            const isSystem = display.isSystem === true;
+            const isDisplay1 = displayId === 'display-1'; // 判断是否为显示器1
+            
             // 创建编辑对话框的内容
-            const editForm = `
-                <div style="display:flex; flex-direction:column; gap:12px;">
+            // 如果是系统显示器，只显示开关；否则显示所有字段
+            const basicFields = isSystem ? '' : `
                     <div>
                         <label style="display:block; margin-bottom:4px; font-weight:bold;">显示端名称:</label>
                         <input id="displayName" type="text" value="${display.name}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
@@ -2090,35 +2193,64 @@ export default {
                         <label style="display:block; margin-bottom:4px; font-weight:bold;">显示端类型:</label>
                         <select id="displaySource" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
                             <option value="builtin" ${display.source === 'builtin' ? 'selected' : ''}>本地显示器</option>
-                            <option value="custom" ${display.source === 'custom' ? 'selected' : ''}>自定义URL</option>
-                            <option value="gitee" ${display.source === 'gitee' ? 'selected' : ''}>Gitee页面</option>
                         </select>
                     </div>
-                    <div id="fileContainer" style="display:${display.source === 'builtin' ? 'block' : 'none'};">
+                    <div id="fileContainer" style="display:block;">
                         <label style="display:block; margin-bottom:4px; font-weight:bold;">本地网页文件:</label>
                         <div style="display:flex; gap:8px;">
                             <input id="displayFile" type="text" value="${display.url || ''}" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;" placeholder="请选择本地HTML文件" readonly>
                             <button id="selectFileBtn" type="button" style="padding:8px 16px; background:#4A90E2; color:white; border:none; border-radius:4px; cursor:pointer; white-space:nowrap;">选择文件</button>
                         </div>
                     </div>
-                    <div id="urlContainer" style="display:${display.source !== 'builtin' ? 'block' : 'none'};">
-                        <label style="display:block; margin-bottom:4px; font-weight:bold;">URL地址:</label>
-                        <input id="displayUrl" type="text" value="${display.url || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;" placeholder="请输入显示端URL">
-                    </div>
                     <div>
                         <label style="display:block; margin-bottom:4px; font-weight:bold;">描述 (可选):</label>
                         <input id="displayDescription" type="text" value="${display.description || ''}" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;" placeholder="请输入显示端描述">
                     </div>
+            `;
+            
+            // 只有显示器1才显示这两个开关
+            const switchFields = isDisplay1 ? `
+                    <!-- 线路名合并开关 -->
+                    <div style="display:flex; align-items:center; justify-content:space-between; ${isSystem ? '' : 'margin-top:8px;'} padding:12px; background:rgba(0,0,0,0.02); border-radius:6px;">
+                        <div style="display:flex; flex-direction:column; gap:2px; flex:1;">
+                            <span style="font-weight:bold; font-size:13px; color:var(--text, #333);">线路名合并</span>
+                            <span style="font-size:11px; color:var(--muted, #666);">显示端左侧按多段线路名拼接展示</span>
+                        </div>
+                        <label style="position:relative; display:inline-block; width:44px; height:24px; margin:0; flex-shrink:0;">
+                            <input type="checkbox" id="lineNameMerge" ${lineNameMerge ? 'checked' : ''} style="opacity:0; width:0; height:0;">
+                            <span style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:${lineNameMerge ? 'var(--accent, #1677ff)' : '#ccc'}; transition:.3s; border-radius:24px;"></span>
+                            <span style="position:absolute; height:18px; width:18px; left:3px; bottom:3px; background-color:white; transition:.3s; border-radius:50%; transform:${lineNameMerge ? 'translateX(20px)' : 'translateX(0)'};"></span>
+                        </label>
+                    </div>
+                    
+                    <!-- 显示全部站点开关 -->
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:rgba(0,0,0,0.02); border-radius:6px;">
+                        <div style="display:flex; flex-direction:column; gap:2px; flex:1;">
+                            <span style="font-weight:bold; font-size:13px; color:var(--text, #333);">显示全部站点</span>
+                            <span style="font-size:11px; color:var(--muted, #666);">启用后，所有站点都会显示在屏幕上，使用 flexbox 布局均匀分布</span>
+                        </div>
+                        <label style="position:relative; display:inline-block; width:44px; height:24px; margin:0; flex-shrink:0;">
+                            <input type="checkbox" id="showAllStations" ${showAllStations ? 'checked' : ''} style="opacity:0; width:0; height:0;">
+                            <span style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:${showAllStations ? 'var(--accent, #1677ff)' : '#ccc'}; transition:.3s; border-radius:24px;"></span>
+                            <span style="position:absolute; height:18px; width:18px; left:3px; bottom:3px; background-color:white; transition:.3s; border-radius:50%; transform:${showAllStations ? 'translateX(20px)' : 'translateX(0)'};"></span>
+                        </label>
+                    </div>
+            ` : '';
+            
+            const editForm = `
+                <div style="display:flex; flex-direction:column; gap:12px;">
+                    ${basicFields}
+                    ${switchFields}
                 </div>
             `;
 
             // 使用自定义对话框
             const result = await new Promise((resolve) => {
                 const dialog = document.createElement('div');
-                dialog.style.cssText = 'position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:30000; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px);';
+                dialog.style.cssText = 'position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:30000; background:rgba(0,0,0,0.45); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);';
                 
                 dialog.innerHTML = `
-                    <div style="background:var(--card); border-radius:12px; padding:24px; max-width:500px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+                    <div style="background:var(--surface-tertiary, #ffffff); border-radius:12px; padding:24px; max-width:500px; width:90%; box-shadow:0 8px 28px rgba(0,0,0,0.3); border:1px solid var(--card-border);">
                         <h3 style="margin:0 0 20px 0; font-size:18px; font-weight:bold; color:var(--text);">编辑显示端 - ${display.name}</h3>
                         ${editForm}
                         <div style="display:flex; gap:12px; margin-top:20px; justify-content:flex-end;">
@@ -2130,62 +2262,83 @@ export default {
 
                 document.body.appendChild(dialog);
 
-                // 添加事件监听器：当显示端类型改变时，动态显示/隐藏URL输入框和文件选择器
-                const displaySourceSelect = dialog.querySelector('#displaySource');
-                const urlContainer = dialog.querySelector('#urlContainer');
-                const fileContainer = dialog.querySelector('#fileContainer');
-                const displayFileInput = dialog.querySelector('#displayFile');
-                const selectFileBtn = dialog.querySelector('#selectFileBtn');
-                
-                if (displaySourceSelect && urlContainer && fileContainer) {
-                    displaySourceSelect.addEventListener('change', function() {
-                        if (this.value === 'builtin') {
-                            urlContainer.style.display = 'none';
-                            fileContainer.style.display = 'block';
-                        } else {
-                            urlContainer.style.display = 'block';
-                            fileContainer.style.display = 'none';
-                        }
-                    });
+                // 如果不是系统显示器，添加文件选择相关的事件监听
+                if (!isSystem) {
+                    const displayFileInput = dialog.querySelector('#displayFile');
+                    const selectFileBtn = dialog.querySelector('#selectFileBtn');
+                    
+                    // 添加文件选择按钮事件
+                    if (selectFileBtn && displayFileInput) {
+                        selectFileBtn.addEventListener('click', async () => {
+                            try {
+                                // 在Electron环境中使用文件选择对话框
+                                if (typeof window !== 'undefined' && window.electronAPI && window.electronAPI.showOpenDialog) {
+                                    const result = await window.electronAPI.showOpenDialog({
+                                        filters: [
+                                            { name: 'HTML文件', extensions: ['html', 'htm'] },
+                                            { name: '所有文件', extensions: ['*'] }
+                                        ],
+                                        properties: ['openFile']
+                                    });
+                                    if (result && !result.canceled && result.filePaths && result.filePaths.length > 0) {
+                                        displayFileInput.value = result.filePaths[0];
+                                    }
+                                } else {
+                                    // 在浏览器环境中使用input file
+                                    const fileInput = document.createElement('input');
+                                    fileInput.type = 'file';
+                                    fileInput.accept = '.html,.htm';
+                                    fileInput.onchange = (e) => {
+                                        const file = e.target.files[0];
+                                        if (file) {
+                                            // 在浏览器中，使用file://协议
+                                            displayFileInput.value = file.name;
+                                            // 注意：浏览器中无法直接获取完整路径，只能获取文件名
+                                            // 实际使用时需要通过URL.createObjectURL创建临时URL
+                                        }
+                                    };
+                                    fileInput.click();
+                                }
+                            } catch (error) {
+                                console.error('选择文件失败:', error);
+                                alert('选择文件失败: ' + error.message);
+                            }
+                        });
+                    }
                 }
                 
-                // 添加文件选择按钮事件
-                if (selectFileBtn && displayFileInput) {
-                    selectFileBtn.addEventListener('click', async () => {
-                        try {
-                            // 在Electron环境中使用文件选择对话框
-                            if (typeof window !== 'undefined' && window.electronAPI && window.electronAPI.showOpenDialog) {
-                                const result = await window.electronAPI.showOpenDialog({
-                                    filters: [
-                                        { name: 'HTML文件', extensions: ['html', 'htm'] },
-                                        { name: '所有文件', extensions: ['*'] }
-                                    ],
-                                    properties: ['openFile']
-                                });
-                                if (result && !result.canceled && result.filePaths && result.filePaths.length > 0) {
-                                    displayFileInput.value = result.filePaths[0];
-                                }
+                // 只有显示器1才添加开关切换事件
+                if (isDisplay1) {
+                    const lineNameMergeCheckbox = dialog.querySelector('#lineNameMerge');
+                    const showAllStationsCheckbox = dialog.querySelector('#showAllStations');
+                    
+                    if (lineNameMergeCheckbox) {
+                        lineNameMergeCheckbox.addEventListener('change', function() {
+                            const toggle = this.nextElementSibling;
+                            const thumb = toggle.nextElementSibling;
+                            if (this.checked) {
+                                toggle.style.backgroundColor = 'var(--accent, #1677ff)';
+                                thumb.style.transform = 'translateX(20px)';
                             } else {
-                                // 在浏览器环境中使用input file
-                                const fileInput = document.createElement('input');
-                                fileInput.type = 'file';
-                                fileInput.accept = '.html,.htm';
-                                fileInput.onchange = (e) => {
-                                    const file = e.target.files[0];
-                                    if (file) {
-                                        // 在浏览器中，使用file://协议
-                                        displayFileInput.value = file.name;
-                                        // 注意：浏览器中无法直接获取完整路径，只能获取文件名
-                                        // 实际使用时需要通过URL.createObjectURL创建临时URL
-                                    }
-                                };
-                                fileInput.click();
+                                toggle.style.backgroundColor = '#ccc';
+                                thumb.style.transform = 'translateX(0)';
                             }
-                        } catch (error) {
-                            console.error('选择文件失败:', error);
-                            alert('选择文件失败: ' + error.message);
-                        }
-                    });
+                        });
+                    }
+                    
+                    if (showAllStationsCheckbox) {
+                        showAllStationsCheckbox.addEventListener('change', function() {
+                            const toggle = this.nextElementSibling;
+                            const thumb = toggle.nextElementSibling;
+                            if (this.checked) {
+                                toggle.style.backgroundColor = 'var(--accent, #1677ff)';
+                                thumb.style.transform = 'translateX(20px)';
+                            } else {
+                                toggle.style.backgroundColor = '#ccc';
+                                thumb.style.transform = 'translateX(0)';
+                            }
+                        });
+                    }
                 }
 
                 dialog.querySelector('#cancelBtn').onclick = () => {
@@ -2194,31 +2347,41 @@ export default {
                 };
 
                 dialog.querySelector('#saveBtn').onclick = () => {
+                    // 只有显示器1才读取开关值
+                    let lineNameMerge = false;
+                    let showAllStations = false;
+                    if (isDisplay1) {
+                        const lineNameMergeCheckbox = dialog.querySelector('#lineNameMerge');
+                        const showAllStationsCheckbox = dialog.querySelector('#showAllStations');
+                        lineNameMerge = lineNameMergeCheckbox ? lineNameMergeCheckbox.checked : false;
+                        showAllStations = showAllStationsCheckbox ? showAllStationsCheckbox.checked : false;
+                    }
+                    
+                    // 如果是系统显示器，只保存开关值（仅显示器1）
+                    if (isSystem) {
+                        document.body.removeChild(dialog);
+                        resolve({ lineNameMerge, showAllStations, isSystem: true, isDisplay1 });
+                        return;
+                    }
+                    
+                    // 非系统显示器，需要验证并保存所有字段
                     const name = dialog.querySelector('#displayName').value.trim();
                     const source = dialog.querySelector('#displaySource').value;
-                    let url = '';
-                    if (source === 'builtin') {
-                        url = dialog.querySelector('#displayFile').value.trim();
-                        if (!url) {
-                            alert('请选择本地网页文件');
-                        return;
-                    }
-                    } else {
-                        url = dialog.querySelector('#displayUrl').value.trim();
-                        if (!url) {
-                        alert('请输入URL地址');
-                        return;
-                    }
-                    }
+                    const url = dialog.querySelector('#displayFile').value.trim();
                     const description = dialog.querySelector('#displayDescription').value.trim();
 
                     if (!name) {
                         alert('请输入显示端名称');
                         return;
                     }
+                    
+                    if (!url) {
+                        alert('请选择本地网页文件');
+                        return;
+                    }
 
                     document.body.removeChild(dialog);
-                    resolve({ name, source, url, description });
+                    resolve({ name, source, url, description, lineNameMerge, showAllStations, isDisplay1 });
                 };
 
                 // 点击背景关闭
@@ -2231,19 +2394,13 @@ export default {
             });
 
             if (result) {
-                display.name = result.name;
-                display.source = result.source;
-                display.url = result.url;
-                // width 和 height 保持不变，不更新
-                display.description = result.description;
-                
-                // 强制更新显示端状态确保响应性
-                displayState.displays = { ...settings.display.displays };
-                
-                saveSettings();
-                
-                if (ENABLE_SLIDE_LOG) console.log('[SlidePanel] 显示端已更新:', displayId, result);
-                await showMsg(`显示端 "${result.name}" 已更新`);
+                // 调用内部函数更新显示端
+                const updateResult = await editDisplayInternal(displayId, result);
+                if (updateResult && updateResult.ok) {
+                    if (ENABLE_SLIDE_LOG) console.log('[SlidePanel] 显示端已更新:', displayId, result);
+                    const displayName = isSystem ? display.name : result.name;
+                    await showMsg(`显示端 "${displayName}" 已更新`);
+                }
             }
         }
 
@@ -2614,9 +2771,6 @@ export default {
                     <div style="flex:1; min-width:0;">
                         <div style="font-size:14px; font-weight:bold; color:var(--text); margin-bottom:4px;">
                             {{ display.name }}
-                            <span v-if="display.isSystem" style="color:#4A90E2; font-size:12px; margin-left:8px;">
-                                <i class="fas fa-shield-alt"></i> 系统
-                            </span>
                             <span v-if="id === displayState.currentDisplayId" style="color:#FF9F43; font-size:12px; margin-left:8px;">
                                 <i class="fas fa-star"></i> 当前
                             </span>
@@ -2634,16 +2788,8 @@ export default {
 
                     <!-- 操作按钮 -->
                     <div style="display:flex; gap:4px; margin-left:8px;" @click="$event.stopPropagation()">
-                        <!-- 系统显示器显示锁定图标 -->
-                        <button v-if="display.isSystem" 
-                                style="padding:6px 8px; border-radius:4px; border:none; background:#95A5A6; color:white; font-size:11px; cursor:not-allowed;" 
-                                disabled title="系统显示器不可编辑">
-                            <i class="fas fa-lock"></i>
-                        </button>
-                        
-                        <!-- 非系统显示器显示编辑按钮 -->
-                        <button v-else 
-                                @click="editDisplay(id)" 
+                        <!-- 编辑按钮 -->
+                        <button @click="editDisplay(id)" 
                                 style="padding:6px 8px; border-radius:4px; border:none; background:#4A90E2; color:white; font-size:11px;" 
                                 title="编辑显示端">
                             <i class="fas fa-edit"></i>
@@ -2657,9 +2803,9 @@ export default {
                         </button>
                         
                         <!-- 删除按钮（仅非系统显示器） -->
-                        <button v-if="!display.isSystem" 
-                                @click="deleteDisplay(id)" 
-                                style="padding:6px 8px; border-radius:4px; border:none; background:#FF6B6B; color:white; font-size:11px;" 
+                        <button v-if="!display.isSystem"
+                                @click="deleteDisplay(id)"
+                                style="padding:6px 8px; border-radius:4px; border:none; background:#FF6B6B; color:white; font-size:11px;"
                                 title="删除显示端">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -2780,7 +2926,7 @@ export default {
 
 
     <!-- Release Notes Dialog -->
-    <div v-if="showReleaseNotes" style="position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:20000; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px);" @click.self="closeReleaseNotes">
+    <div v-if="showReleaseNotes" style="position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:20000; background:#1a1a1a;" @click.self="closeReleaseNotes">
         <div style="background:var(--card); border-radius:12px; padding:24px; max-width:800px; max-height:80vh; width:90%; display:flex; flex-direction:column; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h2 style="margin:0; font-size:20px; font-weight:bold; color:var(--text);">更新日志</h2>

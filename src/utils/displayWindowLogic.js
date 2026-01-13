@@ -726,6 +726,23 @@ const displayStyleSheet = `
     font-family: "Microsoft YaHei", sans-serif;
     overflow: hidden;
 }
+#display-app #welcome-end-screen {
+    width: 100%;
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    background: #090d12;
+    font-family: "Microsoft YaHei", sans-serif;
+    overflow: hidden;
+}
+#display-app .welcome-end-body {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #090d12;
+}
 #display-app .as-body {
     flex: 1;
     display: flex;
@@ -815,16 +832,33 @@ const displayStyleSheet = `
     font-size: 14px;
     color: rgba(0, 0, 0, 0.5);
     font-family: "Microsoft YaHei", sans-serif;
-    pointer-events: none;
+    pointer-events: auto;
     user-select: none;
     line-height: 1.4;
-    max-width: 400px;
-    word-wrap: break-word;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
     text-align: right;
     display: flex;
     align-items: center;
     gap: 4px;
     justify-content: flex-end;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+}
+#display-app #xfer-check::-webkit-scrollbar {
+    height: 4px;
+}
+#display-app #xfer-check::-webkit-scrollbar-track {
+    background: transparent;
+}
+#display-app #xfer-check::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+}
+#display-app #xfer-check::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.5);
 }
 #display-app #xfer-check .warning-icon {
     display: inline-block;
@@ -832,6 +866,11 @@ const displayStyleSheet = `
     font-weight: bold;
     font-size: 18px;
     line-height: 1;
+    flex-shrink: 0;
+}
+#display-app #xfer-check .xfer-check-content {
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 #display-app #xfer-check.hidden {
     display: none;
@@ -1787,9 +1826,8 @@ function updateXferCheck(xferCheckElement, appData) {
   
   // 暂缓开通的站点
   if (issues.suspendedStations.length > 0) {
-    issues.suspendedStations.forEach(station => {
-      parts.push(`${station.stationName}暂缓开通`);
-    });
+    const stationNames = issues.suspendedStations.map(station => station.stationName);
+    parts.push(`${stationNames.join('、')}暂缓开通`);
   }
   
   if (parts.length === 0) {
@@ -1800,7 +1838,7 @@ function updateXferCheck(xferCheckElement, appData) {
   xferCheckElement.classList.remove('hidden');
   
   const content = parts.join('。');
-  xferCheckElement.innerHTML = `<span class="warning-icon">⚠</span>${content}`;
+  xferCheckElement.innerHTML = `<span class="warning-icon">⚠</span><span class="xfer-check-content">${content}</span>`;
 }
 
 export function initDisplayWindow(rootElement) {
@@ -1887,6 +1925,14 @@ export function initDisplayWindow(rootElement) {
   let recorder = null;
   let chunks = [];
   let clockTimer = null;
+  // 保存上一次顶栏终点站信息，用于判断是否需要更新（避免打断滚动动画）
+  let lastTopBarTerminalInfo = {
+    startStationName: null,
+    termStationName: null,
+    mode: null, 
+    dirType: null,
+    lineName: null
+  };
 
   const fitScreen = () => {
     const scaler = root.querySelector('#scaler');
@@ -1994,12 +2040,45 @@ export function initDisplayWindow(rootElement) {
     const themeColor = meta.themeColor || '#00b894';
     root.style.setProperty('--theme', themeColor);
     root.style.setProperty('--contrast-color', getContrastColor(themeColor));
-    // 根据主题颜色与黄色的对比度，决定箭头闪烁颜色
-    // 如果黄色与主题颜色对比度低（< 3.0），使用红色，否则使用黄色
+    // 根据主题颜色决定箭头闪烁颜色的“反色”逻辑：
+    // - 如果背景颜色接近红色，则使用黄色箭头
+    // - 如果背景颜色接近黄色，则使用红色箭头
+    // - 其他颜色默认使用黄色箭头
     const yellowColor = '#f1c40f';
     const redColor = '#e74c3c';
-    const yellowContrast = getContrastRatio(yellowColor, themeColor);
-    const arrowBlinkColor = yellowContrast < 3.0 ? redColor : yellowColor;
+    let arrowBlinkColor = yellowColor;
+    try {
+      const m = /^#?([0-9a-f]{6})$/i.exec(themeColor);
+      if (m) {
+        const intVal = parseInt(m[1], 16);
+        const r = (intVal >> 16) & 0xff;
+        const g = (intVal >> 8) & 0xff;
+        const b = intVal & 0xff;
+        // 参考目标颜色的 RGB
+        const redRef = { r: 0xe7, g: 0x4c, b: 0x3c };     // #e74c3c
+        const yellowRef = { r: 0xf1, g: 0xc4, b: 0x0f };  // #f1c40f
+        const dist = (c1, c2) => {
+          const dr = c1.r - c2.r;
+          const dg = c1.g - c2.g;
+          const db = c1.b - c2.b;
+          return Math.sqrt(dr * dr + dg * dg + db * db);
+        };
+        const distToRed = dist({ r, g, b }, redRef);
+        const distToYellow = dist({ r, g, b }, yellowRef);
+        // 阈值 ~100：大致表示“颜色比较接近”
+        if (distToRed < 100) {
+          // 背景接近红色 → 箭头用黄色
+          arrowBlinkColor = yellowColor;
+        } else if (distToYellow < 100) {
+          // 背景接近黄色 → 箭头用红色
+          arrowBlinkColor = redColor;
+        } else {
+          arrowBlinkColor = yellowColor;
+        }
+      }
+    } catch (e) {
+      arrowBlinkColor = yellowColor;
+    }
     root.style.setProperty('--arrow-blink-accent-color', arrowBlinkColor);
     
     // 设置 header 背景渐变
@@ -2043,7 +2122,25 @@ export function initDisplayWindow(rootElement) {
     const sts = appData.stations;
     const mapDiv = locateId('d-map');
     const arrivalScreen = locateId('arrival-screen');
+    const welcomeEndScreen = locateId('welcome-end-screen');
     const header = locate('.header');
+    
+    // 欢迎结束页面（rt.state === 2）
+    if (rt.state === 2) {
+      cleanupArrivalTimer();
+      lastArrivalIdx = -1;
+      if (mapDiv) mapDiv.style.display = 'none';
+      if (header) header.style.display = 'none';
+      if (arrivalScreen) arrivalScreen.style.display = 'none';
+      if (welcomeEndScreen) {
+        welcomeEndScreen.style.display = 'flex';
+        renderWelcomeEndScreen(sts, meta);
+      }
+      return;
+    }
+    
+    // 如果当前不是到达站状态，才完整渲染正常页面（包括顶栏）
+    // 如果是到达站状态，只更新地图等部分，不更新顶栏，避免中断滚动动画
     renderNormalScreen(sts, meta);
     if (rt.state === 0) {
       if (rt.idx !== lastArrivalIdx) {
@@ -2066,12 +2163,14 @@ export function initDisplayWindow(rootElement) {
         arrivalScreen.style.display = 'flex';
         renderArrivalScreen(sts, meta);
       }
+      if (welcomeEndScreen) welcomeEndScreen.style.display = 'none';
     } else {
       cleanupArrivalTimer();
       lastArrivalIdx = -1;
       if (mapDiv) mapDiv.style.display = 'flex';
       if (header) header.style.display = 'flex';
       if (arrivalScreen) arrivalScreen.style.display = 'none';
+      if (welcomeEndScreen) welcomeEndScreen.style.display = 'none';
     }
   };
 
@@ -2302,6 +2401,7 @@ export function initDisplayWindow(rootElement) {
       if (!mergeEnabled) {
         const rawLineName = meta.lineName || '--';
         const cleanText = (t) => (t || '').replace(/<[^>]+>([^<]*)<\/>/g, '$1').trim();
+        // plainFull 仅用于计算长度，保留 rawLineName 以支持颜色标记（十六进制 / 英文颜色名 / RGB）
         const plainFull = cleanText(rawLineName);
         
         // 计算中文字符数（中文字符、日文、韩文等宽字符算1个字）
@@ -2333,7 +2433,8 @@ export function initDisplayWindow(rootElement) {
 
         const span = document.createElement('span');
         span.className = 'marquee-content';
-        const parsedContent = parseColorMarkup(plainFull);
+        // 使用原始线路名解析颜色标记（如 <lime>K</>101、<#ff0000>…</>、<rgb(255,0,0)>…</>）
+        const parsedContent = parseColorMarkup(rawLineName);
         span.innerHTML = parsedContent;
         box.appendChild(span);
 
@@ -2360,7 +2461,54 @@ export function initDisplayWindow(rootElement) {
     const termBox = locate('.h-term');
     const nextLbl = locate('.h-next .lbl');
     if (!termBox) return;
-    termBox.innerHTML = '';
+    
+    // 检查终点站内容是否需要更新（避免打断滚动动画）
+      const getFirst = () => {
+        for (let i = 0; i < sts.length; i++) if (!sts[i].skip) return sts[i];
+        return sts[0];
+      };
+      const getLast = () => {
+        for (let i = sts.length - 1; i >= 0; i--) if (!sts[i].skip) return sts[i];
+        return sts[sts.length - 1];
+      };
+      let startSt = getFirst();
+      let termSt = getLast();
+      if (meta.startIdx !== undefined && meta.startIdx !== -1) {
+        const s = sts[meta.startIdx];
+      if (s) startSt = s;
+        }
+      if (meta.termIdx !== undefined && meta.termIdx !== -1) {
+        const t = sts[meta.termIdx];
+      if (t) termSt = t;
+    }
+    
+    const currentStartStationName = startSt ? (startSt.name || '') : '';
+    const currentTermStationName = termSt ? (termSt.name || '') : '';
+      const currentLineName = meta.lineName || '';
+      
+    // 检查是否是首次渲染
+    const isFirstRender = lastTopBarTerminalInfo.lineName === null;
+    
+    // 检查终点站内容是否改变
+    const terminalInfoChanged = isFirstRender ||
+      lastTopBarTerminalInfo.startStationName !== currentStartStationName ||
+      lastTopBarTerminalInfo.termStationName !== currentTermStationName ||
+      lastTopBarTerminalInfo.mode !== meta.mode ||
+      lastTopBarTerminalInfo.dirType !== meta.dirType ||
+      lastTopBarTerminalInfo.lineName !== currentLineName;
+    
+    // 只有在内容改变时才更新终点站，避免打断滚动动画
+    if (terminalInfoChanged) {
+        // 更新缓存
+      lastTopBarTerminalInfo.startStationName = currentStartStationName;
+      lastTopBarTerminalInfo.termStationName = currentTermStationName;
+      lastTopBarTerminalInfo.mode = meta.mode;
+      lastTopBarTerminalInfo.dirType = meta.dirType;
+      lastTopBarTerminalInfo.lineName = currentLineName;
+      
+      termBox.innerHTML = '';
+    }
+    
     const createScrollBlock = (st) => {
       const wrapper = document.createElement('div');
       wrapper.style.textAlign = 'center';
@@ -2410,63 +2558,67 @@ export function initDisplayWindow(rootElement) {
       }, 0);
       return wrapper;
     };
-    termBox.innerHTML = '';
-    if (meta.mode === 'loop') {
-      const dirMap = { outer: '外环运行', inner: '内环运行' };
-      const iconClass = meta.dirType === 'outer' ? 'fas fa-undo' : 'fas fa-redo';
-      const anim = meta.dirType === 'outer' ? 'spin-outer 3s linear infinite' : 'spin-inner 3s linear infinite';
-      termBox.innerHTML = `
-        <div style="display:flex; align-items:center; gap:15px; height:100%;">
-          <div style="width: 54px; height: 54px; background: var(--contrast-color); border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); flex-shrink: 0;">
-            <i class="${iconClass}" style="font-size: 38px; color: var(--theme); animation: ${anim};"></i>
+    
+    // 只有在内容改变时才重新渲染终点站
+    if (terminalInfoChanged) {
+      if (meta.mode === 'loop') {
+        const dirMap = { outer: '外环运行', inner: '内环运行' };
+        const iconClass = meta.dirType === 'outer' ? 'fas fa-undo' : 'fas fa-redo';
+        const anim = meta.dirType === 'outer' ? 'spin-outer 3s linear infinite' : 'spin-inner 3s linear infinite';
+        termBox.innerHTML = `
+          <div style="display:flex; align-items:center; gap:15px; height:100%;">
+            <div style="width: 54px; height: 54px; background: var(--contrast-color); border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); flex-shrink: 0;">
+              <i class="${iconClass}" style="font-size: 38px; color: var(--theme); animation: ${anim};"></i>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:flex-start; justify-content:center;">
+              <div style="font-size:36px; font-weight:900; color:var(--contrast-color); line-height:1.1;">${dirMap[meta.dirType] || '--'}</div>
+              <div style="font-size:14px; font-weight:bold; color:var(--contrast-color); opacity:0.8;">${meta.dirType ? meta.dirType.toUpperCase() + ' LOOP' : '--'}</div>
+            </div>
           </div>
-          <div style="display:flex; flex-direction:column; align-items:flex-start; justify-content:center;">
-            <div style="font-size:36px; font-weight:900; color:var(--contrast-color); line-height:1.1;">${dirMap[meta.dirType] || '--'}</div>
-            <div style="font-size:14px; font-weight:bold; color:var(--contrast-color); opacity:0.8;">${meta.dirType ? meta.dirType.toUpperCase() + ' LOOP' : '--'}</div>
-          </div>
-        </div>
-      `;
-    } else {
-      const getFirst = () => {
-        for (let i = 0; i < sts.length; i++) if (!sts[i].skip) return sts[i];
-        return sts[0];
-      };
-      const getLast = () => {
-        for (let i = sts.length - 1; i >= 0; i--) if (!sts[i].skip) return sts[i];
-        return sts[sts.length - 1];
-      };
-      let startSt = getFirst();
-      let termSt = getLast();
-      if (meta.startIdx !== undefined && meta.startIdx !== -1) {
-        const s = sts[meta.startIdx];
-        if (s) startSt = s;
-      }
-      if (meta.termIdx !== undefined && meta.termIdx !== -1) {
-        const t = sts[meta.termIdx];
-        if (t) termSt = t;
-      }
-      let arrowHTML = '';
-      //右侧顶部三角
-      if (meta.dirType === 'up' || meta.dirType === 'outer') {
-        arrowHTML = `
-          <i class="fas fa-chevron-right a1" style="animation-delay:0s;"></i>
-          <i class="fas fa-chevron-right a2" style="animation-delay:0.25s;"></i>
-          <i class="fas fa-chevron-right a3" style="animation-delay:0.5s;"></i>
         `;
       } else {
-        // 左向箭头需动画从右到左，故将延时反转（a3 最先）
-        arrowHTML = `
-          <i class="fas fa-chevron-left a1" style="animation-delay:0.5s;"></i>
-          <i class="fas fa-chevron-left a2" style="animation-delay:0.25s;"></i>
-          <i class="fas fa-chevron-left a3" style="animation-delay:0s;"></i>
-        `;
+        // 重新获取站点（已经在上面计算过，但需要在这里使用）
+        const getFirst = () => {
+          for (let i = 0; i < sts.length; i++) if (!sts[i].skip) return sts[i];
+          return sts[0];
+        };
+        const getLast = () => {
+          for (let i = sts.length - 1; i >= 0; i--) if (!sts[i].skip) return sts[i];
+          return sts[sts.length - 1];
+        };
+        let startSt = getFirst();
+        let termSt = getLast();
+        if (meta.startIdx !== undefined && meta.startIdx !== -1) {
+          const s = sts[meta.startIdx];
+          if (s) startSt = s;
+        }
+        if (meta.termIdx !== undefined && meta.termIdx !== -1) {
+          const t = sts[meta.termIdx];
+          if (t) termSt = t;
+        }
+        let arrowHTML = '';
+        //右侧顶部三角
+        if (meta.dirType === 'up' || meta.dirType === 'outer') {
+          arrowHTML = `
+            <i class="fas fa-chevron-right a1" style="animation-delay:0s;"></i>
+            <i class="fas fa-chevron-right a2" style="animation-delay:0.25s;"></i>
+            <i class="fas fa-chevron-right a3" style="animation-delay:0.5s;"></i>
+          `;
+        } else {
+          // 左向箭头需动画从右到左，故将延时反转（a3 最先）
+          arrowHTML = `
+            <i class="fas fa-chevron-left a1" style="animation-delay:0.5s;"></i>
+            <i class="fas fa-chevron-left a2" style="animation-delay:0.25s;"></i>
+            <i class="fas fa-chevron-left a3" style="animation-delay:0s;"></i>
+          `;
+        }
+        termBox.appendChild(createScrollBlock(startSt));
+        const arrows = document.createElement('div');
+        arrows.className = 'route-arrows';
+        arrows.innerHTML = arrowHTML;
+        termBox.appendChild(arrows);
+        termBox.appendChild(createScrollBlock(termSt));
       }
-      termBox.appendChild(createScrollBlock(startSt));
-      const arrows = document.createElement('div');
-      arrows.className = 'route-arrows';
-      arrows.innerHTML = arrowHTML;
-      termBox.appendChild(arrows);
-      termBox.appendChild(createScrollBlock(termSt));
     }
     let targetSt;
     let isArriving = (rt.state === 0);
@@ -3002,11 +3154,9 @@ export function initDisplayWindow(rootElement) {
       const st1Idx = sts.indexOf(st1);
       const st2Idx = sts.indexOf(st2);
       
-      // 判断线段颜色：
-      // 1. 如果线段两端都是暂缓车站（连续暂缓），线段显示为灰色
-      // 2. 如果线段一端的站点是暂缓车站，线段显示为灰色
-      const isBothSkipped = (st1.skip && st2.skip); // 连续暂缓车站
-      const isSegmentGray = (st1.skip || st2.skip); // 任一站点是暂缓车站
+      // 判断线段颜色（已关闭暂缓车站检查，暂缓车站之间也正常显示主题色高亮）
+      // const isBothSkipped = (st1.skip && st2.skip); // 连续暂缓车站（已禁用）
+      // const isSegmentGray = (st1.skip || st2.skip); // 任一站点是暂缓车站（已禁用）
       
       // 判断线段是否在高亮范围内
       // 线段在高亮范围内：如果线段的两端都在高亮范围内，或者线段从到达站到目标站
@@ -3036,11 +3186,13 @@ export function initDisplayWindow(rootElement) {
       // 确定线段颜色
       let segmentColor = '#ccc'; // 默认灰色
       
-      // 优先级：暂缓车站 > 高亮范围判断 > 自定义颜色（仅在高亮范围内）> 默认灰色
-      if (isBothSkipped || isSegmentGray) {
-        // 如果有连续暂缓车站或任一暂缓车站，显示为灰色（最高优先级）
-        segmentColor = '#ccc';
-      } else if (isInHighlightRange) {
+      // 优先级：高亮范围判断 > 自定义颜色（仅在高亮范围内）> 默认灰色
+      // 已关闭暂缓车站检查，暂缓车站之间也正常显示主题色高亮
+      // if (isBothSkipped || isSegmentGray) {
+      //   // 如果有连续暂缓车站或任一暂缓车站，显示为灰色（最高优先级）（已禁用）
+      //   segmentColor = '#ccc';
+      // } else 
+      if (isInHighlightRange) {
         // 如果线段在高亮范围内，使用自定义颜色或主题色
         if (customColor) {
           // 在高亮范围内，使用自定义颜色
@@ -3342,10 +3494,13 @@ export function initDisplayWindow(rootElement) {
           const isInHighlightRange = (st1InRange && st2InRange) || isFromArrivalToTarget;
           
           const arrowCenter = getArrowPosition(i);
-          for (let k = -1; k <= 1; k++) {
+          // 改为两个箭头，以节点中间为中心对称分布
+          for (let k = 0; k <= 1; k++) {
             const wrapper = document.createElement('div');
             wrapper.style.position = 'absolute';
-            wrapper.style.left = (arrowCenter + k * 20) + 'px';
+            // 计算箭头位置：第一个向左偏移 spacing/2，第二个向右偏移 spacing/2
+            const offset = (k === 0) ? -20 / 2 : 20 / 2;
+            wrapper.style.left = (arrowCenter + offset) + 'px';
             wrapper.style.top = '50%';
             wrapper.style.zIndex = '10';
             let baseTransform = 'translate(-50%, -50%)';
@@ -3478,10 +3633,13 @@ export function initDisplayWindow(rootElement) {
       const isInHighlightRange = (st1InRange && st2InRange) || isFromArrivalToTarget;
       
       const arrowCenter = (i + 1) * 160;
-      for (let k = -1; k <= 1; k++) {
+      // 改为两个箭头，以节点中间为中心对称分布
+      for (let k = 0; k <= 1; k++) {
         const wrapper = document.createElement('div');
         wrapper.style.position = 'absolute';
-        wrapper.style.left = (arrowCenter + k * 20) + 'px';
+        // 计算箭头位置：第一个向左偏移 spacing/2，第二个向右偏移 spacing/2
+        const offset = (k === 0) ? -20 / 2 : 20 / 2;
+        wrapper.style.left = (arrowCenter + offset) + 'px';
         wrapper.style.top = '50%';
         wrapper.style.zIndex = '10';
         let baseTransform = 'translate(-50%, -50%)';
@@ -3503,6 +3661,16 @@ export function initDisplayWindow(rootElement) {
     }
     
     mapPanel.appendChild(box);
+  };
+
+  const renderWelcomeEndScreen = (sts, meta) => {
+    // 欢迎结束页面：空白页面，不显示任何内容
+    // 这个页面可以用于欢迎或结束场景
+    const welcomeEndBody = root.querySelector('.welcome-end-body');
+    if (welcomeEndBody) {
+      // 保持空白，或者可以在这里添加自定义内容
+      welcomeEndBody.innerHTML = '';
+    }
   };
 
   const drawLinear = (c, sts, m) => {
@@ -3590,7 +3758,10 @@ export function initDisplayWindow(rootElement) {
       }
     }
     
-    const MAX_POSITIONS = targetMaxPositions;
+    // 检查是否启用"显示全部站点"功能
+    // 如果 meta.showAllStations 为 true，则无论站点数量多少都使用 flexbox 布局
+    const showAllStations = (m.showAllStations === true);
+    const MAX_POSITIONS = showAllStations ? Infinity : targetMaxPositions;
     let spacing = 90;
     
     // 计算渐变位置：如果站点数量少于或等于MAX_POSITIONS，使用flexbox布局；否则使用原始计算
@@ -3636,11 +3807,9 @@ export function initDisplayWindow(rootElement) {
       const st2 = sts[i + 1];
       if (!st1 || !st2) continue;
       
-      // 判断线段颜色：
-      // 1. 如果线段两端都是暂缓车站（连续暂缓），线段显示为灰色
-      // 2. 如果线段一端的站点是暂缓车站，线段显示为灰色
-      const isBothSkipped = (st1.skip && st2.skip); // 连续暂缓车站
-      const isSegmentGray = (st1.skip || st2.skip); // 任一站点是暂缓车站
+      // 判断线段颜色（已关闭暂缓车站检查，暂缓车站之间也正常显示主题色高亮）
+      // const isBothSkipped = (st1.skip && st2.skip); // 连续暂缓车站（已禁用）
+      // const isSegmentGray = (st1.skip || st2.skip); // 任一站点是暂缓车站（已禁用）
       
       // 判断线段是否在运营区域内
       const isInServiceRange = (i >= rangeStart && i < rangeEnd);
@@ -3666,11 +3835,13 @@ export function initDisplayWindow(rootElement) {
       // 确定线段颜色
       let segmentColor = '#ccc'; // 默认灰色
       
-      // 优先级：暂缓车站 > 高亮范围判断 > 自定义颜色（仅在高亮范围内）> 默认灰色
-      if (isBothSkipped || isSegmentGray) {
-        // 如果有连续暂缓车站或任一暂缓车站，显示为灰色（最高优先级）
-        segmentColor = '#ccc';
-      } else if (isInHighlightRange && isInServiceRange) {
+      // 优先级：高亮范围判断 > 自定义颜色（仅在高亮范围内）> 默认灰色
+      // 已关闭暂缓车站检查，暂缓车站之间也正常显示主题色高亮
+      // if (isBothSkipped || isSegmentGray) {
+      //   // 如果有连续暂缓车站或任一暂缓车站，显示为灰色（最高优先级）（已禁用）
+      //   segmentColor = '#ccc';
+      // } else 
+      if (isInHighlightRange && isInServiceRange) {
         // 如果线段在高亮范围内且在运营区域内，使用自定义颜色或主题色
         if (customColor) {
           // 在高亮范围内，使用自定义颜色
@@ -3714,6 +3885,34 @@ export function initDisplayWindow(rootElement) {
     
     // 如果站点数量少于或等于MAX_POSITIONS，使用flexbox均匀分布
     if (total <= MAX_POSITIONS) {
+      // 计算动态缩放比例（仅在启用 showAllStations 时）
+      let scaleRatio = 1.0;
+      let nodeWidth = 90; // 默认节点宽度
+      let nameFontSize = 26; // 默认站点名称字体大小
+      let enFontSize = 16; // 默认英文名称字体大小
+      let trackHeight = 18; // 默认线路条高度
+      let dotSize = 30; // 默认圆点大小（内径）
+      let dotBorder = 5; // 默认圆点边框宽度
+      let arrowFontSize = 24; // 默认箭头字体大小
+      let arrowSpacing = 20; // 默认箭头间距
+      
+      if (showAllStations && total > 0) {
+        // 基准值：假设 21 个站点时使用正常大小
+        const baseStationCount = 21;
+        // 计算缩放比例：站点越多，缩放越小，但最小不低于 0.4
+        scaleRatio = Math.max(0.4, Math.min(1.0, baseStationCount / total));
+        
+        // 根据缩放比例调整各项尺寸
+        nodeWidth = Math.max(36, Math.round(90 * scaleRatio)); // 最小宽度 36px
+        nameFontSize = Math.max(10, Math.round(26 * scaleRatio)); // 最小字体 10px
+        enFontSize = Math.max(6, Math.round(16 * scaleRatio)); // 最小字体 6px
+        trackHeight = Math.max(8, Math.round(18 * scaleRatio)); // 最小高度 8px
+        dotSize = Math.max(12, Math.round(30 * scaleRatio)); // 最小圆点大小 12px
+        dotBorder = Math.max(2, Math.round(5 * scaleRatio)); // 最小边框 2px
+        arrowFontSize = Math.max(10, Math.round(24 * scaleRatio)); // 最小箭头字体 10px
+        arrowSpacing = Math.max(8, Math.round(20 * scaleRatio)); // 最小箭头间距 8px
+      }
+      
       box.style.position = 'relative'; // 确保箭头绝对定位的基准
       box.style.display = 'flex';
       box.style.justifyContent = 'space-between';
@@ -3727,6 +3926,95 @@ export function initDisplayWindow(rootElement) {
         const dot = node.querySelector('.dot');
         const name = node.querySelector('.name');
         const en = node.querySelector('.en');
+        
+        // 应用动态缩放
+        if (showAllStations && scaleRatio < 1.0) {
+          // 调整节点宽度
+          node.style.width = nodeWidth + 'px';
+          node.style.minWidth = nodeWidth + 'px';
+          node.style.maxWidth = nodeWidth + 'px';
+          
+          // 调整站点名称字体大小
+          if (name) {
+            name.style.fontSize = nameFontSize + 'px';
+          }
+          
+          // 调整英文名称字体大小
+          if (en) {
+            en.style.fontSize = enFontSize + 'px';
+          }
+          
+          // 调整圆点大小
+          if (dot) {
+            dot.style.width = dotSize + 'px';
+            dot.style.height = dotSize + 'px';
+            dot.style.borderWidth = dotBorder + 'px';
+          }
+          
+          // 调整 info-top 和 info-btm 的宽度以适应节点宽度
+          const infoTop = node.querySelector('.info-top');
+          const infoBtm = node.querySelector('.info-btm');
+          
+          // 计算缩放后的圆点相关尺寸
+          const dotGap = Math.max(4, Math.round(14 * scaleRatio)); // 默认 gap 14px (--dot-gap)
+          const dotHalfSize = dotSize / 2;
+          const dotBorderWidth = dotBorder;
+          
+          if (infoTop) {
+            infoTop.style.width = nodeWidth + 'px';
+            infoTop.style.maxWidth = nodeWidth + 'px';
+            // 调整 info-top 的 transform，根据缩放后的圆点大小调整位置
+            // 原始公式：calc(-1 * (calc(var(--dot-inner-size) / 2) + var(--dot-border) + var(--dot-gap) - 10px))
+            const translateY = -(dotHalfSize + dotBorderWidth + dotGap - 10 * scaleRatio);
+            infoTop.style.transform = `translate(-50%, ${translateY}px)`;
+            // 调整 gap
+            const gap = Math.max(2, Math.round(3 * scaleRatio)); // 默认 3px
+            infoTop.style.gap = gap + 'px';
+          }
+          
+          if (infoBtm) {
+            infoBtm.style.width = nodeWidth + 'px';
+            infoBtm.style.maxWidth = nodeWidth + 'px';
+            // 调整文字容器的 transform，根据缩放后的圆点大小调整位置
+            // 原始公式：calc((calc(var(--dot-inner-size) / 2) + var(--dot-border) + var(--dot-gap)))
+            const translateY = dotHalfSize + dotBorderWidth + dotGap;
+            infoBtm.style.transform = `translate(-50%, ${translateY}px)`;
+          }
+          
+          // 调整站点名称的字间距和行高
+          if (name) {
+            const letterSpacing = Math.max(1, Math.round(2 * scaleRatio)); // 默认 2px
+            name.style.letterSpacing = letterSpacing + 'px';
+            const marginBottom = Math.max(-2, Math.round(-5 * scaleRatio)); // 默认 -5px
+            name.style.marginBottom = marginBottom + 'px';
+          }
+          
+          // 调整英文名称的 padding
+          if (en) {
+            const paddingBottom = Math.max(1, Math.round(2 * scaleRatio)); // 默认约 2px
+            en.style.paddingBottom = paddingBottom + 'px';
+          }
+          
+          // 调整 info-top 中的标签字体大小
+          const xTags = node.querySelectorAll('.info-top .x-tag');
+          xTags.forEach(tag => {
+            const tagFontSize = Math.max(8, Math.round(12 * scaleRatio)); // 默认 12px
+            tag.style.fontSize = tagFontSize + 'px';
+            const tagPadding = Math.max(1, Math.round(2 * scaleRatio)) + 'px ' + Math.max(3, Math.round(6 * scaleRatio)) + 'px';
+            tag.style.padding = tagPadding;
+            const tagBorderRadius = Math.max(2, Math.round(3 * scaleRatio));
+            tag.style.borderRadius = tagBorderRadius + 'px';
+          });
+          
+          // 调整 info-top 中的 defer 标签字体大小
+          const deferTags = node.querySelectorAll('.info-top .defer');
+          deferTags.forEach(tag => {
+            const deferFontSize = Math.max(7, Math.round(11 * scaleRatio)); // 默认 11px
+            tag.style.fontSize = deferFontSize + 'px';
+            const deferPadding = Math.max(1, Math.round(2 * scaleRatio)) + 'px ' + Math.max(2, Math.round(5 * scaleRatio)) + 'px';
+            tag.style.padding = deferPadding;
+          });
+        }
         
         // 使用flex布局，不需要绝对定位
         node.style.position = 'relative';
@@ -3808,16 +4096,29 @@ export function initDisplayWindow(rootElement) {
       box.appendChild(fragment);
       
       // 设置track容器宽度
-      const nodeWidth = 90;
       const boxWidth = 1900; // box的实际宽度（scaler宽度）
       const trackWidth = boxWidth; // track宽度与box宽度一致
       trackContainer.style.width = trackWidth + 'px';
       
+      // 应用线路条高度缩放
+      if (showAllStations && scaleRatio < 1.0) {
+        trackContainer.style.height = trackHeight + 'px';
+        // 调整所有线段的边框和高度
+        const segments = trackContainer.querySelectorAll('.track-segment');
+        segments.forEach(segment => {
+          segment.style.height = trackHeight + 'px';
+          // 调整边框宽度，保持比例
+          const borderWidth = Math.max(2, Math.round(5 * scaleRatio));
+          segment.style.borderTop = borderWidth + 'px solid transparent';
+          segment.style.borderBottom = borderWidth + 'px solid transparent';
+        });
+      }
+      
       // 计算站点的实际中心位置（考虑节点宽度）
       // 使用space-between时，第一个节点的左边缘在0，最后一个节点的右边缘在boxWidth
       // 第一个站点的中心在 nodeWidth/2，最后一个站点的中心在 boxWidth - nodeWidth/2
-      const firstNodeCenter = nodeWidth / 2; // 45px
-      const lastNodeCenter = boxWidth - nodeWidth / 2; // 1900 - 45 = 1855px
+      const firstNodeCenter = nodeWidth / 2;
+      const lastNodeCenter = boxWidth - nodeWidth / 2;
       
       // 辅助函数：计算站点的实际中心位置
       const getStationCenter = (idx) => {
@@ -3959,16 +4260,23 @@ export function initDisplayWindow(rootElement) {
     }
     c.appendChild(box);
     
-    // 计算箭头位置
+    // 计算箭头位置（需要访问外部的缩放变量）
+    // 注意：如果启用了 showAllStations 且在 flexbox 布局中，nodeWidth 已经在上面计算过了
     const getArrowPosition = (i) => {
       if (total <= MAX_POSITIONS) {
         // 使用flexbox布局时，箭头位置在两个站点中间
         // 使用space-between时，第一个节点的左边缘在0，最后一个节点的右边缘在boxWidth
-        // 每个节点宽度90px，所以第一个节点中心在45px，最后一个节点中心在(boxWidth-45)px
-        const nodeWidth = 90;
+        // nodeWidth 已经在上面根据缩放比例计算过了（在 if 块内）
         const boxWidth = 1900; // box的实际宽度（scaler宽度），与track宽度一致
-        const firstNodeCenter = nodeWidth / 2; // 45px
-        const lastNodeCenter = boxWidth - nodeWidth / 2; // 1900 - 45 = 1855px
+        // 如果启用了缩放，需要重新计算 nodeWidth（因为它在 if 块内）
+        let currentNodeWidth = 90; // 默认值
+        if (showAllStations && total > 0) {
+          const baseStationCount = 21;
+          const scaleRatio = Math.max(0.4, Math.min(1.0, baseStationCount / total));
+          currentNodeWidth = Math.max(36, Math.round(90 * scaleRatio));
+        }
+        const firstNodeCenter = currentNodeWidth / 2;
+        const lastNodeCenter = boxWidth - currentNodeWidth / 2;
         
         // 计算第i个和第i+1个站点的中心位置（线性插值）
         const ratio1 = i / (total - 1);
@@ -3994,13 +4302,28 @@ export function initDisplayWindow(rootElement) {
       }
     };
     
+    // 获取箭头缩放值（如果启用了缩放）
+    let currentArrowFontSize = 24;
+    let currentArrowSpacing = 20;
+    if (showAllStations && total > 0) {
+      const baseStationCount = 21;
+      const scaleRatio = Math.max(0.4, Math.min(1.0, baseStationCount / total));
+      currentArrowFontSize = Math.max(10, Math.round(24 * scaleRatio));
+      currentArrowSpacing = Math.max(8, Math.round(20 * scaleRatio));
+    }
+    
     for (let i = 0; i < sts.length - 1; i++) {
       if (i < rangeStart || i >= rangeEnd) continue;
       const arrowCenter = getArrowPosition(i);
-      for (let k = -1; k <= 1; k++) {
+      // 改为两个箭头，以节点中间为中心对称分布
+      // k = 0: 左箭头 (arrowCenter - spacing/2)
+      // k = 1: 右箭头 (arrowCenter + spacing/2)
+      for (let k = 0; k <= 1; k++) {
         const wrapper = document.createElement('div');
         wrapper.style.position = 'absolute';
-        wrapper.style.left = (arrowCenter + k * 20) + 'px';
+        // 计算箭头位置：第一个向左偏移 spacing/2，第二个向右偏移 spacing/2
+        const offset = (k === 0) ? -currentArrowSpacing / 2 : currentArrowSpacing / 2;
+        wrapper.style.left = (arrowCenter + offset) + 'px';
         wrapper.style.top = '50%';
         wrapper.style.zIndex = '10';
         let rot = '';
@@ -4022,7 +4345,7 @@ export function initDisplayWindow(rootElement) {
           ai.classList.add('segment-arrow');
           if (isCurrSeg) ai.classList.add('segment-arrow-current'); else ai.classList.add('segment-arrow-default');
         }
-        arrow.style.fontSize = '24px';
+        arrow.style.fontSize = currentArrowFontSize + 'px';
         wrapper.appendChild(arrow);
         box.appendChild(wrapper);
       }
@@ -4143,14 +4466,36 @@ export function initDisplayWindow(rootElement) {
       // 环线模式：高亮从highlightStartIdx到highlightEndIdx的线段
       let isInHighlightRange = false;
       
+      // 判断首末站之间的线段（从最后一个站点到第一个站点的线段）
+      // 在环线中，如果i是最后一个站点（sts.length - 1），那么nextI是0（第一个站点）
+      const isLastToFirstSegment = (i === sts.length - 1 && nextI === 0);
+      
       // 如果起点和终点相同，高亮整个环线
       if (highlightStartIdx === highlightEndIdx) {
         isInHighlightRange = true;
       } else {
-        // 判断首末站之间的线段（从最后一个站点到第一个站点的线段）
-        // 在环线中，如果i是最后一个站点（sts.length - 1），那么nextI是0（第一个站点）
-        const isLastToFirstSegment = (i === sts.length - 1 && nextI === 0);
-        
+        // 先判断是否是首末站之间的线段，如果是，优先处理
+        if (isLastToFirstSegment) {
+          // 首末站之间的线段：在环线模式下，如果高亮范围跨越了首末站，或者高亮范围包含了最后一个站点或第一个站点，首末站之间的线段应该被高亮
+          // 情况1：高亮范围跨越了首末站（起点在终点之后，或终点在起点之后）
+          const crossesStartEnd = (highlightStartIdx > highlightEndIdx) || (highlightEndIdx < highlightStartIdx);
+          // 情况2：高亮范围包含第一个站点（起点是0，或终点是0）
+          const includesFirstStation = (highlightStartIdx === 0) || (highlightEndIdx === 0);
+          // 情况3：高亮范围包含最后一个站点（终点是最后一个站点，或起点是最后一个站点）
+          const includesLastStation = (highlightEndIdx === sts.length - 1) || (highlightStartIdx === sts.length - 1);
+          // 情况4：高亮范围从第一个站点开始且到最后一个站点结束（完整环线）
+          const fullLoop = (highlightStartIdx === 0 && highlightEndIdx === sts.length - 1) || 
+                          (highlightStartIdx === sts.length - 1 && highlightEndIdx === 0);
+          
+          // 在环线模式下，如果高亮范围包含第一个站点或最后一个站点，首末站之间的线段应该被高亮
+          // 这是因为在环线中，从最后一个站点到第一个站点是连续的
+          // 特别地，如果高亮范围从第一个站点开始且到最后一个站点结束，那么首末站之间的线段应该被高亮
+          if (crossesStartEnd || includesFirstStation || includesLastStation || fullLoop) {
+            isInHighlightRange = true;
+          }
+          
+        } else {
+          // 非首末站之间的线段：正常判断
         if (m.dirType === 'outer') {
           // 外环：从highlightStartIdx向前到highlightEndIdx
           if (highlightStartIdx < highlightEndIdx) {
@@ -4169,20 +4514,6 @@ export function initDisplayWindow(rootElement) {
             // 跨过起点的情况（终点在起点之后）
             isInHighlightRange = (i >= highlightEndIdx || i < highlightStartIdx);
           }
-        }
-        
-        // 特殊处理：首末站之间的线段（从最后一个站点到第一个站点）
-        // 如果高亮范围包含首站或末站，且这是首末站之间的线段，则应该被高亮
-        // 或者，如果起点站是第一个站点（0）且终点站是最后一个站点，包含首末站之间的线段
-        if (isLastToFirstSegment) {
-          // 检查是否应该包含这个线段
-          // 如果起点站是第一个站点（0）或终点站是最后一个站点，或者高亮范围跨越了首末站
-          const shouldIncludeLastToFirst = 
-            (highlightStartIdx === 0 || highlightEndIdx === sts.length - 1) ||
-            (highlightStartIdx > highlightEndIdx); // 跨过起点的情况
-          
-          if (shouldIncludeLastToFirst) {
-            isInHighlightRange = true;
           }
         }
       }
@@ -4219,8 +4550,12 @@ export function initDisplayWindow(rootElement) {
       
       // 确定线段颜色
       let segmentColor = '#ccc'; // 默认灰色
+      // 对于首末站之间的线段，如果在高亮范围内，优先使用主题色
+      if (isLastToFirstSegment && isInHighlightRange) {
+        // 首末站之间的线段在高亮范围内，使用主题色
+        segmentColor = m.themeColor || 'var(--theme)';
+      } else if (customColor) {
       // 优先使用自定义颜色
-      if (customColor) {
         segmentColor = customColor;
       } else if (isInHighlightRange) {
         // 如果线段在高亮范围内，无论是否有暂缓车站，都显示为主题色
@@ -4234,10 +4569,76 @@ export function initDisplayWindow(rootElement) {
       let d1 = getStDist(i);
       let d2 = getStDist(nextI);
       // 处理循环路径的情况
-      if (d2 < d1) d2 += perimeter;
+      const isWrapping = (d2 < d1);
+      if (isWrapping) d2 += perimeter;
       const segLen = d2 - d1;
       
+      // 计算stroke-dashoffset
+      // 对于首末站之间的线段（跨过起点），需要特殊处理
+      let dashOffset = -d1;
+      if (isLastToFirstSegment && isWrapping) {
+        // 对于首末站之间的线段，d1接近perimeter，d2已经加上了perimeter
+        // 线段实际上是从d1到perimeter，然后从0到d2_original
+        // 由于路径是闭合的，我们需要调整偏移量
+        // 当d1接近perimeter时，使用perimeter - d1作为偏移量
+        // 这样线段会从路径末尾正确显示到路径开头
+        const d2Original = d2 - perimeter; // 第一个站点的原始距离
+        // 线段从d1开始，到d2Original结束（通过perimeter）
+        // 偏移量应该让线段从d1位置开始显示
+        // 由于d1接近perimeter，我们需要确保偏移量正确
+        // 使用perimeter - d1作为偏移量，这样线段会从d1位置开始
+        if (d1 >= perimeter) {
+          // 如果d1 >= perimeter，使用模运算
+          dashOffset = -(d1 % perimeter);
+        } else {
+          // 正常情况，使用-d1
+          // 对于闭合路径，-d1应该能正确工作
+          dashOffset = -d1;
+        }
+      }
+      
       // 创建独立的线段路径
+      if (isLastToFirstSegment && isWrapping) {
+        // 对于首末站之间的线段，需要分成两段绘制：
+        // 1. 从d1到perimeter的线段
+        // 2. 从0到d2Original的线段
+        const d2Original = d2 - perimeter;
+        const segLen1 = perimeter - d1; // 从d1到perimeter的长度
+        const segLen2 = d2Original; // 从0到d2Original的长度
+        
+        // 第一段：从d1到perimeter
+        if (segLen1 > 0) {
+          const segmentPath1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          segmentPath1.setAttribute('d', d);
+          segmentPath1.setAttribute('fill', 'none');
+          segmentPath1.setAttribute('stroke', segmentColor);
+          segmentPath1.setAttribute('stroke-width', '18');
+          segmentPath1.setAttribute('stroke-dasharray', `${segLen1} ${perimeter}`);
+          segmentPath1.setAttribute('stroke-dashoffset', `-${d1}`);
+          segmentPath1.dataset.segmentIndex = i;
+          segmentPath1.dataset.station1Idx = i;
+          segmentPath1.dataset.station2Idx = nextI;
+          segmentPath1.dataset.part = '1';
+          svg.appendChild(segmentPath1);
+        }
+        
+        // 第二段：从0到d2Original
+        if (segLen2 > 0) {
+          const segmentPath2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          segmentPath2.setAttribute('d', d);
+          segmentPath2.setAttribute('fill', 'none');
+          segmentPath2.setAttribute('stroke', segmentColor);
+          segmentPath2.setAttribute('stroke-width', '18');
+          segmentPath2.setAttribute('stroke-dasharray', `${segLen2} ${perimeter}`);
+          segmentPath2.setAttribute('stroke-dashoffset', '0');
+          segmentPath2.dataset.segmentIndex = i;
+          segmentPath2.dataset.station1Idx = i;
+          segmentPath2.dataset.station2Idx = nextI;
+          segmentPath2.dataset.part = '2';
+          svg.appendChild(segmentPath2);
+        }
+      } else {
+        // 正常线段：使用单一路径
       const segmentPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       segmentPath.setAttribute('d', d);
       segmentPath.setAttribute('fill', 'none');
@@ -4246,11 +4647,12 @@ export function initDisplayWindow(rootElement) {
       // 使用stroke-dasharray和stroke-dashoffset来只显示线段部分
       // dasharray格式: "线段长度 总长度"，然后通过offset偏移到正确位置
       segmentPath.setAttribute('stroke-dasharray', `${segLen} ${perimeter}`);
-      segmentPath.setAttribute('stroke-dashoffset', `-${d1}`);
+        segmentPath.setAttribute('stroke-dashoffset', `${dashOffset}`);
       segmentPath.dataset.segmentIndex = i;
       segmentPath.dataset.station1Idx = i;
       segmentPath.dataset.station2Idx = nextI;
       svg.appendChild(segmentPath);
+      }
     }
     const measurePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     measurePath.setAttribute('d', d);
@@ -4312,7 +4714,8 @@ export function initDisplayWindow(rootElement) {
       if (d2 < d1) d2 += perimeter;
       const segLen = d2 - d1;
       const isCurrentSeg = rt.state === 1 && ((prevIdx === i && targetIdx === nextI) || (prevIdx === nextI && targetIdx === i));
-      [0.38, 0.5, 0.62].forEach((ratio, ridx) => {
+      // 改为两个箭头，以线段中间为中心对称分布（45% 和 55%）
+      [0.45, 0.55].forEach((ratio, ridx) => {
         let aDist = (d1 + segLen * ratio) % perimeter;
         const ptArr = measurePath.getPointAtLength(aDist);
         const pA = measurePath.getPointAtLength((aDist - 2 + perimeter) % perimeter);

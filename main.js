@@ -4,6 +4,15 @@ const fs = require('fs');
 const fsPromises = fs.promises;
 const crypto = require('crypto');
 
+// 导入显示器控制API服务器
+let displayApiServer = null;
+try {
+  const apiServerModule = require('./scripts/display-api-server.js');
+  displayApiServer = apiServerModule.createDisplayApiServer();
+} catch (e) {
+  console.warn('[main] 无法加载显示器控制API服务器:', e);
+}
+
 // ================= GPU 加速优化（优先作用于显示端） =================
 // 这些开关需要在 app.ready 之前配置，主要影响 Chromium 渲染管线。
 // Electron 默认已经启用 GPU，但通过以下开关可以更偏向 GPU 光栅化和零拷贝路径，
@@ -680,12 +689,162 @@ function createWindow() {
   });
 
   // 暴露 IPC 供渲染层切换显示端
-  ipcMain.handle('switch-display', (event, displayId, width, height) => {
+  ipcMain.handle('switch-display', async (event, displayId, width, height) => {
     console.log('[main] switch-display requested, displayId=', displayId, 'width=', width, 'height=', height);
     
-    // 关闭所有现有的显示窗口
+    // 检查是否已存在该显示端窗口
+    const existingWin = displayWindows.get(displayId);
+    if (existingWin && !existingWin.isDestroyed()) {
+      // 如果已存在该显示端窗口，检查是否需要重新加载URL（配置可能已更改）
+      try {
+        // 读取当前配置，检查URL是否变化
+        let needReload = false;
+        let expectedUrl = null;
+        
+        // 从 electron-store 读取配置
+        let displayConfig = null;
+        if (store) {
+          try {
+            const settings = store.get('settings', {});
+            const displays = settings.display?.displays || {};
+            displayConfig = displays[displayId];
+            console.log(`[main] switch-display: 从 electron-store 读取显示端配置 ${displayId}:`, displayConfig ? {
+              source: displayConfig.source,
+              url: displayConfig.url,
+              name: displayConfig.name
+            } : '未找到配置');
+          } catch (e) {
+            console.warn('[main] 从 electron-store 读取显示端配置失败:', e);
+          }
+        }
+        
+        // 如果 electron-store 中没有配置，尝试从主窗口的 localStorage 读取
+        if (!displayConfig && mainWin && !mainWin.isDestroyed()) {
+          try {
+            const localStorageSettings = await mainWin.webContents.executeJavaScript(`
+              (function() {
+                try {
+                  const raw = localStorage.getItem('pids_settings_v1');
+                  if (raw) {
+                    return JSON.parse(raw);
+                  }
+                  return null;
+                } catch(e) {
+                  return null;
+                }
+              })();
+            `);
+            
+            if (localStorageSettings && localStorageSettings.display && localStorageSettings.display.displays) {
+              displayConfig = localStorageSettings.display.displays[displayId];
+              if (displayConfig) {
+                console.log(`[main] switch-display: 从主窗口 localStorage 读取显示端配置 ${displayId}:`, {
+                  source: displayConfig.source,
+                  url: displayConfig.url,
+                  name: displayConfig.name
+                });
+                // 同步到 electron-store
+                if (store) {
+                  const currentSettings = store.get('settings', {});
+                  if (!currentSettings.display) currentSettings.display = {};
+                  if (!currentSettings.display.displays) currentSettings.display.displays = {};
+                  currentSettings.display.displays[displayId] = displayConfig;
+                  store.set('settings', currentSettings);
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('[main] 从主窗口读取配置失败:', e);
+          }
+        }
+        
+        // 计算期望的URL
+        if (displayConfig && displayConfig.source === 'builtin') {
+          if (displayConfig.url) {
+            // 自定义HTML文件路径
+            let customFilePath = displayConfig.url.trim();
+            let resolvedPath;
+            if (path.isAbsolute(customFilePath)) {
+              resolvedPath = customFilePath;
+            } else {
+              if (app.isPackaged) {
+                resolvedPath = path.join(app.getAppPath(), customFilePath);
+              } else {
+                resolvedPath = path.join(__dirname, '..', customFilePath);
+              }
+            }
+            resolvedPath = path.normalize(resolvedPath);
+            
+            if (fs.existsSync(resolvedPath)) {
+              const fileUrl = process.platform === 'win32' 
+                ? `file:///${resolvedPath.replace(/\\/g, '/')}`
+                : `file://${resolvedPath}`;
+              expectedUrl = fileUrl;
+            } else {
+              console.warn(`[main] switch-display: 配置的本地文件不存在: ${resolvedPath}`);
+            }
+          } else {
+            // 使用默认路径
+            if (displayId === 'display-1') {
+              expectedUrl = getRendererUrl('display_window.html');
+            } else {
+              const customRel = path.join('displays', displayId, 'display_window.html');
+              const customPath = app.isPackaged 
+                ? path.join(app.getAppPath(), 'out/renderer', customRel)
+                : path.join(__dirname, '../renderer', customRel);
+              if (fs.existsSync(customPath)) {
+                expectedUrl = getRendererUrl(customRel);
+              } else {
+                expectedUrl = getRendererUrl('display_window.html');
+              }
+            }
+          }
+        } else {
+          // 没有配置，使用默认路径
+          if (displayId === 'display-1') {
+            expectedUrl = getRendererUrl('display_window.html');
+          } else {
+            expectedUrl = getRendererUrl('display_window.html');
+          }
+        }
+        
+        // 获取当前窗口的URL
+        const currentUrl = existingWin.webContents.getURL();
+        console.log(`[main] switch-display: 当前窗口URL: ${currentUrl}`);
+        console.log(`[main] switch-display: 期望URL: ${expectedUrl}`);
+        
+        // 比较URL，如果不一致则需要重新加载
+        if (expectedUrl && currentUrl !== expectedUrl) {
+          needReload = true;
+          console.log(`[main] switch-display: URL不一致，需要重新加载`);
+        }
+        
+        if (needReload) {
+          // 需要重新加载，关闭旧窗口并创建新窗口
+          console.log(`[main] 显示端 ${displayId} 配置已更改，重新加载窗口`);
+          try {
+            existingWin.close();
+            displayWindows.delete(displayId);
+          } catch (e) {
+            console.warn(`[main] 关闭显示窗口 ${displayId} 失败:`, e);
+          }
+        } else {
+          // 配置未更改，直接聚焦并调整尺寸
+          if (typeof width === 'number' && typeof height === 'number') {
+            existingWin.setSize(Math.max(100, Math.floor(width)), Math.max(100, Math.floor(height)));
+          }
+          existingWin.focus();
+          console.log(`[main] 显示端 ${displayId} 窗口已存在，已聚焦`);
+          return true;
+        }
+      } catch (e) {
+        console.warn(`[main] 处理显示窗口 ${displayId} 失败:`, e);
+      }
+    }
+    
+    // 关闭所有现有的显示窗口（除了目标显示端）
     for (const [id, win] of displayWindows.entries()) {
-      if (win && !win.isDestroyed()) {
+      if (id !== displayId && win && !win.isDestroyed()) {
         try {
           win.close();
         } catch (e) {
@@ -693,11 +852,65 @@ function createWindow() {
         }
       }
     }
-    displayWindows.clear();
     
-    // 创建新的显示窗口
+    // 清理已关闭的窗口引用
+    for (const [id, win] of displayWindows.entries()) {
+      if (win && win.isDestroyed()) {
+        displayWindows.delete(id);
+      }
+    }
+    
+    // 创建新的显示窗口（如果不存在或需要重新加载）
     createDisplayWindow(width, height, displayId);
+    
     return true;
+  });
+
+  // 暴露 IPC 供渲染层同步设置到主进程
+  ipcMain.handle('settings/sync', async (event, settings) => {
+    try {
+      if (store && settings) {
+        store.set('settings', settings);
+        console.log('[main] 设置已同步到 electron-store');
+        return { ok: true };
+      }
+      return { ok: false, error: 'store 未初始化或 settings 为空' };
+    } catch (e) {
+      console.error('[main] 同步设置失败:', e);
+      return { ok: false, error: String(e.message || e) };
+    }
+  });
+
+  // 暴露 IPC 供API服务器编辑显示端配置
+  ipcMain.handle('api/edit-display', async (event, displayId, displayData) => {
+    try {
+      if (!mainWin || mainWin.isDestroyed()) {
+        return { ok: false, error: '主窗口未就绪' };
+      }
+      
+      // 通过IPC通知渲染进程更新显示端配置
+      const result = await new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          resolve({ ok: false, error: '操作超时' });
+        }, 5000);
+        
+        const handler = (event, response) => {
+          clearTimeout(timeout);
+          ipcMain.removeListener('api/edit-display-result', handler);
+          resolve(response);
+        };
+        
+        ipcMain.once('api/edit-display-result', handler);
+        
+        // 发送编辑请求到渲染进程
+        mainWin.webContents.send('api/edit-display-request', displayId, displayData);
+      });
+      
+      return result;
+    } catch (e) {
+      console.error('[main] 编辑显示端失败:', e);
+      return { ok: false, error: String(e.message || e) };
+    }
   });
 
   // 暴露 IPC 供渲染层打开线路管理器
@@ -3041,6 +3254,23 @@ async function initAutoUpdater() {
   try {
     autoUpdater.disableWebInstaller = false;
     
+    // 如果指定了本地更新源，则优先使用（便于本地搭建HTTP服务测试更新）
+    // 用法：启动前设置环境变量 LOCAL_UPDATE_URL，例如
+    //   Windows PowerShell:  $env:LOCAL_UPDATE_URL="http://localhost:8080/"
+    //   macOS/Linux:         LOCAL_UPDATE_URL="http://localhost:8080/" npm start
+    const localFeed = process.env.LOCAL_UPDATE_URL;
+    if (localFeed) {
+      try {
+        autoUpdater.setFeedURL({
+          url: localFeed,
+          provider: 'generic'
+        });
+        console.log('[main] 使用本地更新源 LOCAL_UPDATE_URL:', localFeed);
+      } catch (e) {
+        console.error('[main] 设置本地更新源失败:', e);
+      }
+    }
+    
     // 根据静默更新配置决定是否自动下载
     const silentUpdateEnabled = getSilentUpdateEnabled();
     autoUpdater.autoDownload = silentUpdateEnabled;
@@ -3485,6 +3715,161 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+
+  // 启动显示器控制API服务器
+  if (displayApiServer) {
+    try {
+      const { server, PORT, setApiHandlers } = displayApiServer;
+      
+      // 设置API处理器
+      setApiHandlers({
+        getDisplayWindows: () => displayWindows,
+        createDisplayWindow: (width, height, displayId) => {
+          return createDisplayWindow(width, height, displayId);
+        },
+        closeDisplayWindow: (displayId) => {
+          if (displayId) {
+            // 关闭指定显示器
+            const win = displayWindows.get(displayId);
+            if (win && !win.isDestroyed()) {
+              win.close();
+              displayWindows.delete(displayId);
+              return [displayId];
+            }
+            return [];
+          } else {
+            // 关闭所有显示器
+            const closed = [];
+            for (const [id, win] of displayWindows.entries()) {
+              if (win && !win.isDestroyed()) {
+                win.close();
+                closed.push(id);
+              }
+            }
+            displayWindows.clear();
+            return closed;
+          }
+        },
+        sendBroadcastMessage: (payload) => {
+          // 通过所有显示端窗口的webContents发送BroadcastChannel消息
+          const channelName = 'metro_pids_v3';
+          const payloadStr = JSON.stringify(payload);
+          
+          // 改进的发送代码：同时使用 BroadcastChannel 和 window.postMessage
+          const jsCode = `
+            (function() {
+              try {
+                let success = false;
+                
+                // 方法1：使用 BroadcastChannel（同源时有效）
+                if (typeof BroadcastChannel !== 'undefined') {
+                  try {
+                    const bc = new BroadcastChannel('${channelName}');
+                    bc.postMessage(${payloadStr});
+                    bc.close();
+                    success = true;
+                  } catch(e) {
+                    console.warn('[Display] BroadcastChannel 发送失败:', e);
+                  }
+                }
+                
+                // 方法2：使用 window.postMessage（作为回退方案，对所有窗口有效）
+                if (typeof window !== 'undefined' && typeof window.postMessage === 'function') {
+                  try {
+                    window.postMessage(${payloadStr}, '*');
+                    success = true;
+                  } catch(e) {
+                    console.warn('[Display] postMessage 发送失败:', e);
+                  }
+                }
+                
+                return success;
+              } catch(e) {
+                console.error('[Display] 发送消息失败:', e);
+                return false;
+              }
+            })();
+          `;
+          
+          let successCount = 0;
+          for (const [id, win] of displayWindows.entries()) {
+            if (win && !win.isDestroyed() && win.webContents) {
+              try {
+                win.webContents.executeJavaScript(jsCode).catch(e => {
+                  console.warn(`[DisplayAPI] 向 ${id} 发送消息失败:`, e);
+                });
+                successCount++;
+              } catch (e) {
+                console.warn(`[DisplayAPI] 执行脚本失败 (${id}):`, e);
+              }
+            }
+          }
+          
+          // 同时发送到主窗口（如果存在）
+          if (mainWin && !mainWin.isDestroyed() && mainWin.webContents) {
+            try {
+              mainWin.webContents.executeJavaScript(jsCode).catch(e => {
+                console.warn('[DisplayAPI] 向主窗口发送消息失败:', e);
+              });
+            } catch (e) {
+              console.warn('[DisplayAPI] 向主窗口执行脚本失败:', e);
+            }
+          }
+          
+          return successCount;
+        },
+        getMainWindow: () => mainWin,
+        getStore: () => store,
+        editDisplay: async (displayId, displayData) => {
+          // 通过IPC调用编辑显示端
+          try {
+            if (!mainWin || mainWin.isDestroyed()) {
+              return { ok: false, error: '主窗口未就绪' };
+            }
+            
+            const result = await new Promise((resolve) => {
+              const timeout = setTimeout(() => {
+                ipcMain.removeListener('api/edit-display-result', handler);
+                resolve({ ok: false, error: '操作超时' });
+              }, 5000);
+              
+              const handler = (event, response) => {
+                clearTimeout(timeout);
+                ipcMain.removeListener('api/edit-display-result', handler);
+                resolve(response);
+              };
+              
+              ipcMain.once('api/edit-display-result', handler);
+              
+              // 发送编辑请求到渲染进程
+              mainWin.webContents.send('api/edit-display-request', displayId, displayData);
+            });
+            
+            return result;
+          } catch (e) {
+            console.error('[DisplayAPI] 编辑显示端失败:', e);
+            return { ok: false, error: String(e.message || e) };
+          }
+        }
+      });
+      
+      // 启动服务器
+      server.listen(PORT, () => {
+        console.log(`[DisplayAPI] ✅ 显示器控制 API 服务器已启动，端口: ${PORT}`);
+        console.log(`[DisplayAPI] 访问 http://localhost:${PORT}/api/display/info 查看API文档`);
+      });
+      
+      server.on('error', (e) => {
+        if (e.code === 'EADDRINUSE') {
+          console.warn(`[DisplayAPI] 端口 ${PORT} 已被占用，API服务器未启动`);
+        } else {
+          console.error('[DisplayAPI] 服务器错误:', e);
+        }
+      });
+    } catch (e) {
+      console.error('[main] 启动显示器控制API服务器失败:', e);
+    }
+  }
 });
 
 // 关闭所有窗口的辅助函数
@@ -4326,7 +4711,7 @@ async function scheduleAutoUpdateCheck() {
   }
 }
 
-function createDisplayWindow(width, height, displayId = 'display-1') {
+async function createDisplayWindow(width, height, displayId = 'display-1') {
   // 检查是否已存在该显示端窗口
   if (displayWindows.has(displayId)) {
     const existingWin = displayWindows.get(displayId);
@@ -4347,36 +4732,235 @@ function createDisplayWindow(width, height, displayId = 'display-1') {
   }
 
   // 计算适配缩放后的窗口尺寸
-  // 始终使用内容尺寸（1900x600）作为窗口的逻辑尺寸，确保在所有缩放比例下显示内容一致
-  // 无论系统缩放是多少（100%, 125%, 150%, 200%, 250%, 300%等），窗口逻辑尺寸都保持1900×600
-  const contentWidth = 1900;
-  const contentHeight = 600;
+  // 如果没有传入尺寸参数，尝试从配置中读取显示端的默认尺寸
+  let defaultWidth = 1900;
+  let defaultHeight = 600;
+  
+  // 尝试从store中读取显示端配置以获取默认尺寸（仅在参数未传入时）
+  if (typeof width !== 'number' || typeof height !== 'number') {
+    try {
+      if (store) {
+        const settings = store.get('settings', {});
+        const displays = settings.display?.displays || {};
+        const displayConfig = displays[displayId];
+        if (displayConfig) {
+          if (typeof displayConfig.width === 'number' && displayConfig.width > 0) {
+            defaultWidth = Number(displayConfig.width);
+          }
+          if (typeof displayConfig.height === 'number' && displayConfig.height > 0) {
+            defaultHeight = Number(displayConfig.height);
+          }
+          console.log(`[main] 从配置读取 ${displayId} 尺寸:`, defaultWidth, 'x', defaultHeight);
+        } else {
+          console.warn(`[main] 未找到 ${displayId} 的配置，使用默认尺寸:`, defaultWidth, 'x', defaultHeight);
+        }
+      }
+    } catch (e) {
+      console.warn('[main] 读取显示端默认尺寸失败:', e);
+    }
+  } else {
+    console.log(`[main] 使用传入的 ${displayId} 尺寸:`, width, 'x', height);
+  }
   
   // 窗口逻辑尺寸始终与内容尺寸一致，不受系统缩放影响
   // 这样可以确保在所有缩放比例下，显示的内容范围都是一样的
   let logicalWidth, logicalHeight;
+  
+  // 对于 display-2，强制使用 1500x400，忽略所有其他值
+  if (displayId === 'display-2') {
+    // 强制使用 1500x400，无论配置或传入的参数是什么
+    logicalWidth = 1500;
+    logicalHeight = 400;
+    console.log(`[main] display-2 强制使用固定尺寸:`, logicalWidth, 'x', logicalHeight, '(忽略传入的参数:', width, 'x', height, '和配置值)');
+    
+    // 同时更新 store 中的配置，确保配置正确
+    try {
+      if (store) {
+        const settings = store.get('settings', {});
+        if (!settings.display) settings.display = {};
+        if (!settings.display.displays) settings.display.displays = {};
+        if (!settings.display.displays['display-2']) {
+          settings.display.displays['display-2'] = {};
+        }
+        settings.display.displays['display-2'].width = 1500;
+        settings.display.displays['display-2'].height = 400;
+        store.set('settings', settings);
+        console.log(`[main] display-2 配置已更新为: 1500x400`);
+      }
+    } catch (e) {
+      console.warn('[main] display-2 更新配置失败:', e);
+    }
+    
+    // 跳过后续的配置读取逻辑
+  } else if (false) { // 原来的 display-2 逻辑已移到上面，这里永远不会执行
+    // 尝试从配置读取 display-2 的尺寸
+    try {
+      if (store) {
+        const settings = store.get('settings', {});
+        const displays = settings.display?.displays || {};
+        const display2Config = displays['display-2'];
+        if (display2Config) {
+          const configWidth = display2Config.width;
+          const configHeight = display2Config.height;
+          if (typeof configWidth === 'number' && configWidth > 0 && typeof configHeight === 'number' && configHeight > 0) {
+            logicalWidth = Number(configWidth);
+            logicalHeight = Number(configHeight);
+            console.log(`[main] display-2 强制使用配置尺寸:`, logicalWidth, 'x', logicalHeight, '(忽略传入的参数:', width, 'x', height, ')');
+          } else {
+            // 配置无效，使用传入的参数或默认值
+            if (typeof width === 'number' && typeof height === 'number') {
+              logicalWidth = Math.max(100, Math.floor(width));
+              logicalHeight = Math.max(100, Math.floor(height));
+              console.log(`[main] display-2 配置无效，使用传入的参数:`, logicalWidth, 'x', logicalHeight);
+            } else {
+              logicalWidth = defaultWidth;
+              logicalHeight = defaultHeight;
+              console.log(`[main] display-2 配置无效，使用默认尺寸:`, logicalWidth, 'x', logicalHeight);
+            }
+          }
+        } else {
+          // 没有配置，使用传入的参数或默认值
+          if (typeof width === 'number' && typeof height === 'number') {
+            logicalWidth = Math.max(100, Math.floor(width));
+            logicalHeight = Math.max(100, Math.floor(height));
+            console.log(`[main] display-2 无配置，使用传入的参数:`, logicalWidth, 'x', logicalHeight);
+          } else {
+            logicalWidth = defaultWidth;
+            logicalHeight = defaultHeight;
+            console.log(`[main] display-2 无配置，使用默认尺寸:`, logicalWidth, 'x', logicalHeight);
+          }
+        }
+      } else {
+        // store 不可用，使用传入的参数或默认值
+        if (typeof width === 'number' && typeof height === 'number') {
+          logicalWidth = Math.max(100, Math.floor(width));
+          logicalHeight = Math.max(100, Math.floor(height));
+          console.log(`[main] display-2 store不可用，使用传入的参数:`, logicalWidth, 'x', logicalHeight);
+        } else {
+          logicalWidth = defaultWidth;
+          logicalHeight = defaultHeight;
+          console.log(`[main] display-2 store不可用，使用默认尺寸:`, logicalWidth, 'x', logicalHeight);
+        }
+      }
+    } catch (e) {
+      console.warn('[main] display-2 读取配置失败，使用传入参数或默认值:', e);
+      if (typeof width === 'number' && typeof height === 'number') {
+        logicalWidth = Math.max(100, Math.floor(width));
+        logicalHeight = Math.max(100, Math.floor(height));
+      } else {
+        logicalWidth = defaultWidth;
+        logicalHeight = defaultHeight;
+      }
+    }
+  } else {
+    // 其他显示端使用原有逻辑
   if (typeof width === 'number' && typeof height === 'number') {
     // 如果传入了尺寸参数，使用传入的尺寸
     logicalWidth = Math.max(100, Math.floor(width));
     logicalHeight = Math.max(100, Math.floor(height));
+      console.log(`[main] ${displayId} 使用传入的尺寸参数:`, logicalWidth, 'x', logicalHeight);
   } else {
-    // 始终使用内容尺寸，不受系统缩放影响
-    logicalWidth = contentWidth;
-    logicalHeight = contentHeight;
+    // 使用从配置读取的默认尺寸，如果没有配置则使用默认值
+    logicalWidth = defaultWidth;
+    logicalHeight = defaultHeight;
+      console.log(`[main] ${displayId} 使用配置/默认尺寸:`, logicalWidth, 'x', logicalHeight);
+    }
   }
   
   // 确保尺寸为4的倍数，以避免在高DPI下的渲染问题
   const adjustedWidth = Math.ceil(logicalWidth / 4) * 4;
   const adjustedHeight = Math.ceil(logicalHeight / 4) * 4;
+  console.log(`[main] ${displayId} 最终窗口尺寸:`, adjustedWidth, 'x', adjustedHeight);
 
+  // 先读取显示端配置，以判断是否为第三方显示器（自定义HTML文件）
+  let displayConfig = null;
+  
+  // 首先尝试从 electron-store 读取
+  if (store) {
+    try {
+      const settings = store.get('settings', {});
+      const displays = settings.display?.displays || {};
+      displayConfig = displays[displayId];
+      console.log(`[main] 创建窗口前读取显示端配置 ${displayId}:`, displayConfig ? {
+        source: displayConfig.source,
+        url: displayConfig.url,
+        name: displayConfig.name
+      } : '未找到配置');
+    } catch (e) {
+      console.warn('[main] 从 electron-store 读取显示端配置失败:', e);
+    }
+  }
+  
+  // 如果 electron-store 中没有配置，尝试从主窗口的 localStorage 读取（通过 IPC）
+  if (!displayConfig && mainWin && !mainWin.isDestroyed()) {
+    try {
+      const localStorageSettings = await mainWin.webContents.executeJavaScript(`
+        (function() {
+          try {
+            const raw = localStorage.getItem('pids_settings_v1');
+            if (raw) {
+              return JSON.parse(raw);
+            }
+            return null;
+          } catch(e) {
+            return null;
+          }
+        })();
+      `);
+      
+      if (localStorageSettings && localStorageSettings.display && localStorageSettings.display.displays) {
+        displayConfig = localStorageSettings.display.displays[displayId];
+        if (displayConfig) {
+          console.log(`[main] 创建窗口前从主窗口 localStorage 读取显示端配置 ${displayId}:`, {
+            source: displayConfig.source,
+            url: displayConfig.url,
+            name: displayConfig.name
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[main] 从主窗口读取配置失败:', e);
+    }
+  }
+  
+  // 判断是否为第三方显示器（配置了自定义HTML文件）
+  const isThirdPartyDisplay = displayConfig && displayConfig.source === 'builtin' && displayConfig.url && displayConfig.url.trim();
+  
   // 使用方案二：隐藏默认标题栏，显示系统窗口控制按钮
   const isWindows = process.platform === 'win32';
   const isMacOS = process.platform === 'darwin';
   const isLinux = process.platform === 'linux';
   
-  // Linux 不支持自定义标题栏，使用系统默认标题栏
+  // 根据是否为第三方显示器选择窗口配置
   let opts;
-  if (isLinux) {
+  if (isThirdPartyDisplay) {
+    // 第三方显示器：使用框架窗口（有标题栏、边框等）
+    console.log(`[main] ${displayId} 是第三方显示器，使用框架窗口`);
+    opts = {
+      width: adjustedWidth,
+      height: adjustedHeight,
+      useContentSize: false,
+      frame: true, // 显示框架
+      transparent: false,
+      backgroundColor: '#ffffff', // 白色背景
+      resizable: true, // 允许调整大小
+      maximizable: true, // 允许最大化
+      minimizable: true, // 允许最小化
+      show: false, // 先不显示，等 ready-to-show 事件后再显示
+      skipTaskbar: false,
+      title: displayConfig.name || `Metro PIDS - ${displayId}`,
+      webPreferences: {
+        preload: getPreloadPath(),
+        contextIsolation: true,
+        nodeIntegration: false,
+        zoomFactor: 1.0,
+        backgroundThrottling: false,
+        offscreen: false,
+        enableBlinkFeatures: 'Accelerated2dCanvas,CanvasOopRasterization'
+      }
+    };
+  } else if (isLinux) {
+    // Linux 不支持自定义标题栏，使用系统默认标题栏
     opts = {
       width: adjustedWidth,
       height: adjustedHeight,
@@ -4400,13 +4984,15 @@ function createDisplayWindow(width, height, displayId = 'display-1') {
     };
   } else {
     // Windows 和 MacOS 使用自定义标题栏
+   // 如果 mica-electron 可用，使用透明背景以支持 Mica 效果（不模糊）
+    const useMica = isWindows && MicaBrowserWindow !== BrowserWindow;
     opts = {
       width: adjustedWidth,
       height: adjustedHeight,
       useContentSize: false,
       frame: false, // 隐藏默认框架
-      transparent: false, // 确保不透明，避免黑屏
-      backgroundColor: '#090d12', // 设置背景色，与显示窗口的深色背景一致
+      transparent: false, // 如果使用 Mica，启用透明；否则不透明
+      backgroundColor: useMica ? '#00000000' : '#090d12', // Mica 时透明，否则使用深色背景
       resizable: false,
       maximizable: false, // 禁用最大化
       show: false, // 先不显示，等 ready-to-show 事件后再显示
@@ -4438,35 +5024,83 @@ function createDisplayWindow(width, height, displayId = 'display-1') {
   }
 
   const displayWin = new BrowserWindow(opts);
+  
+  // 立即确保窗口尺寸正确（防止某些情况下尺寸被错误设置）
+  // 对于 display-2，强制使用 1500x400
+  let finalWidth = adjustedWidth;
+  let finalHeight = adjustedHeight;
+  if (displayId === 'display-2') {
+    // 强制使用配置中的尺寸，忽略所有其他值
+    try {
+      if (store) {
+        const settings = store.get('settings', {});
+        const displays = settings.display?.displays || {};
+        const display2Config = displays['display-2'];
+        if (display2Config) {
+          const configWidth = display2Config.width;
+          const configHeight = display2Config.height;
+          if (typeof configWidth === 'number' && configWidth > 0 && typeof configHeight === 'number' && configHeight > 0) {
+            finalWidth = Math.ceil(Number(configWidth) / 4) * 4;
+            finalHeight = Math.ceil(Number(configHeight) / 4) * 4;
+            console.log(`[main] display-2 强制使用配置尺寸:`, finalWidth, 'x', finalHeight);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[main] display-2 强制读取配置失败:', e);
+    }
+  }
+  
+  displayWin.setSize(finalWidth, finalHeight, false);
+  console.log(`[main] ${displayId} 窗口已创建，尺寸已设置为:`, finalWidth, 'x', finalHeight);
 
   // 根据显示端ID选择不同的HTML文件
   let dispPath;
   
-  // 尝试从store中读取显示端配置
-  let displayConfig = null;
-  if (store) {
-    try {
-      const settings = store.get('settings', {});
-      const displays = settings.display?.displays || {};
-      displayConfig = displays[displayId];
-    } catch (e) {
-      console.warn('[main] 读取显示端配置失败:', e);
-    }
-  }
-  
+  // displayConfig 已在窗口创建前读取，这里直接使用
   // 如果配置了本地文件路径（source为builtin且url存在），使用该路径
   if (displayConfig && displayConfig.source === 'builtin' && displayConfig.url) {
-    // 检查文件是否存在（绝对或相对路径）
-    if (fs.existsSync(displayConfig.url)) {
-      dispPath = `file://${path.resolve(displayConfig.url)}`;
+    let customFilePath = displayConfig.url.trim();
+    console.log(`[main] 检测到自定义HTML文件路径: ${customFilePath}`);
+    
+    // 规范化路径：如果是相对路径，需要相对于应用目录解析
+    let resolvedPath;
+    if (path.isAbsolute(customFilePath)) {
+      // 绝对路径，直接使用
+      resolvedPath = customFilePath;
     } else {
-      console.warn(`[main] 配置的本地文件不存在: ${displayConfig.url}，使用默认路径`);
+      // 相对路径，相对于应用目录解析
+      if (app.isPackaged) {
+        resolvedPath = path.join(app.getAppPath(), customFilePath);
+      } else {
+        resolvedPath = path.join(__dirname, '..', customFilePath);
+      }
+    }
+    
+    // 规范化路径格式（处理Windows路径分隔符等）
+    resolvedPath = path.normalize(resolvedPath);
+    console.log(`[main] 解析后的文件路径: ${resolvedPath}`);
+    
+    // 检查文件是否存在
+    if (fs.existsSync(resolvedPath)) {
+      // 使用 file:// 协议加载本地文件
+      // Windows路径需要特殊处理：file:///C:/path/to/file.html
+      // Unix路径：file:///path/to/file.html
+      const fileUrl = process.platform === 'win32' 
+        ? `file:///${resolvedPath.replace(/\\/g, '/')}`
+        : `file://${resolvedPath}`;
+      dispPath = fileUrl;
+      console.log(`[main] ✅ 使用自定义HTML文件: ${fileUrl}`);
+    } else {
+      console.warn(`[main] ⚠️ 配置的本地文件不存在: ${resolvedPath}，使用默认路径`);
       // 回退到默认路径
       if (displayId === 'display-1') {
         dispPath = getRendererUrl('display_window.html');
       } else {
         const customRel = path.join('displays', displayId, 'display_window.html');
-        const customPath = path.join(__dirname, customRel);
+        const customPath = app.isPackaged 
+          ? path.join(app.getAppPath(), 'out/renderer', customRel)
+          : path.join(__dirname, '../renderer', customRel);
         if (fs.existsSync(customPath)) {
           dispPath = getRendererUrl(customRel);
         } else {
@@ -4474,22 +5108,103 @@ function createDisplayWindow(width, height, displayId = 'display-1') {
         }
       }
     }
-  } else if (displayId === 'display-1') {
-    dispPath = getRendererUrl('display_window.html');
   } else {
-    // 检查是否存在对应的显示端文件
-    const customRel = path.join('displays', displayId, 'display_window.html');
-    const customPath = path.join(__dirname, customRel);
-    if (fs.existsSync(customPath)) {
-      dispPath = getRendererUrl(customRel);
-    } else {
-      // 如果不存在，使用默认显示端
+    // 没有配置自定义URL，检查是否有默认的显示端文件
+    if (displayId === 'display-1') {
       dispPath = getRendererUrl('display_window.html');
+      console.log(`[main] 使用默认主显示器路径: ${dispPath}`);
+    } else {
+      // 检查是否存在对应的显示端文件
+      const customRel = path.join('displays', displayId, 'display_window.html');
+      // 直接使用 getRendererUrl 的逻辑来构建路径进行检查
+      let customPath;
+      
+      if (app.isPackaged) {
+        // 打包环境：使用 app.getAppPath()
+        const appPath = app.getAppPath();
+        customPath = path.join(appPath, 'out/renderer', customRel);
+      } else {
+        // 开发环境：使用 __dirname/../renderer
+        customPath = path.join(__dirname, '../renderer', customRel);
+      }
+      
+      console.log(`[main] 检查 display-${displayId} 文件路径: ${customPath}, 存在: ${fs.existsSync(customPath)}`);
+      
+      if (fs.existsSync(customPath)) {
+        dispPath = getRendererUrl(customRel);
+        console.log(`[main] ✅ 使用 display-${displayId} 路径: ${dispPath}`);
+      } else {
+        // 如果不存在，使用默认显示端
+        console.warn(`[main] ⚠️ display-${displayId} 文件不存在 (${customPath})，使用默认显示端`);
+        if (displayConfig) {
+          console.log(`[main] 显示端配置信息: source=${displayConfig.source}, url=${displayConfig.url || '(空)'}, name=${displayConfig.name || '(空)'}`);
+        } else {
+          console.warn(`[main] ⚠️ 显示端 ${displayId} 的配置未找到`);
+        }
+        dispPath = getRendererUrl('display_window.html');
+      }
     }
   }
+  
+  console.log(`[main] createDisplayWindow: displayId=${displayId}, dispPath=${dispPath}`);
 
   // 在窗口准备好后再显示，避免黑屏
   displayWin.once('ready-to-show', () => {
+    // 再次确保窗口尺寸正确（特别是 display-2）
+    // 对于 display-2，再次从配置读取确保使用正确尺寸
+    let expectedWidth = finalWidth;
+    let expectedHeight = finalHeight;
+    
+    if (displayId === 'display-2') {
+      try {
+        if (store) {
+          const settings = store.get('settings', {});
+          const displays = settings.display?.displays || {};
+          const display2Config = displays['display-2'];
+          if (display2Config) {
+            const configWidth = display2Config.width;
+            const configHeight = display2Config.height;
+            if (typeof configWidth === 'number' && configWidth > 0 && typeof configHeight === 'number' && configHeight > 0) {
+              expectedWidth = Math.ceil(Number(configWidth) / 4) * 4;
+              expectedHeight = Math.ceil(Number(configHeight) / 4) * 4;
+              console.log(`[main] display-2 ready-to-show 时强制使用配置尺寸:`, expectedWidth, 'x', expectedHeight);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[main] display-2 ready-to-show 读取配置失败:', e);
+      }
+    }
+    
+    const currentSize = displayWin.getSize();
+    if (currentSize[0] !== expectedWidth || currentSize[1] !== expectedHeight) {
+      console.warn(`[main] ${displayId} 窗口尺寸不匹配！当前: ${currentSize[0]}x${currentSize[1]}, 期望: ${expectedWidth}x${expectedHeight}，正在修正...`);
+      displayWin.setSize(expectedWidth, expectedHeight, false);
+      // 对于 display-2，如果尺寸仍然不对，多次强制设置
+      if (displayId === 'display-2') {
+        setTimeout(() => {
+          const checkSize = displayWin.getSize();
+          if (checkSize[0] !== expectedWidth || checkSize[1] !== expectedHeight) {
+            console.warn(`[main] display-2 尺寸仍然不正确，再次强制设置:`, expectedWidth, 'x', expectedHeight);
+            displayWin.setSize(expectedWidth, expectedHeight, false);
+            // 再延迟一次确保设置成功
+            setTimeout(() => {
+              const checkSize2 = displayWin.getSize();
+              if (checkSize2[0] !== expectedWidth || checkSize2[1] !== expectedHeight) {
+                console.error(`[main] display-2 尺寸设置失败！当前: ${checkSize2[0]}x${checkSize2[1]}, 期望: ${expectedWidth}x${expectedHeight}`);
+                displayWin.setSize(expectedWidth, expectedHeight, false);
+              } else {
+                console.log(`[main] display-2 ✅ 尺寸已成功设置为:`, expectedWidth, 'x', expectedHeight);
+              }
+            }, 200);
+          } else {
+            console.log(`[main] display-2 ✅ 尺寸已正确:`, expectedWidth, 'x', expectedHeight);
+          }
+        }, 100);
+      }
+    } else {
+      console.log(`[main] ${displayId} ✅ 窗口尺寸正确:`, expectedWidth, 'x', expectedHeight);
+    }
     displayWin.show();
     // 在开发模式下自动打开开发者工具
     if (!app.isPackaged) {

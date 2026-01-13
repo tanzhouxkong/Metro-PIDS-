@@ -188,7 +188,7 @@ export const DEFAULT_SETTINGS = {
         width: 1900,
         height: 600,
         currentDisplayId: 'display-1', // 当前活动的显示端ID
-        display2Mode: 'dev-only', // 'disabled' | 'dev-only' | 'enabled' - display-2 的显示模式
+        display2Mode: 'enabled', // 'disabled' | 'dev-only' | 'enabled' - display-2 的显示模式
         displays: {
             'display-1': {
                 id: 'display-1',
@@ -198,7 +198,7 @@ export const DEFAULT_SETTINGS = {
                 width: 1900,
                 height: 600,
                 enabled: true,
-                isSystem: true, // 标记为系统显示器，不可删除编辑
+                isSystem: false,
                 description: '主要显示端，用于主要信息展示'
             },
             'display-2': {
@@ -206,10 +206,10 @@ export const DEFAULT_SETTINGS = {
                 name: '副显示器',
                 source: 'builtin',
                 url: '',
-                width: 1920,
-                height: 1080,
+                width: 1500,
+                height: 400,
                 enabled: true,
-                isSystem: true, // 标记为系统显示器，不可删除编辑
+                isSystem: false,
                 description: '辅助显示端，用于补充信息展示'
             }
         }

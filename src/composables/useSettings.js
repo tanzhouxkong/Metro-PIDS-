@@ -51,7 +51,7 @@ export function useSettings() {
                                 width: oldDisplay.width || 1900,
                                 height: oldDisplay.height || 600,
                                 enabled: true,
-                                isSystem: true,
+                                isSystem: false,
                                 description: '主要显示端，用于主要信息展示'
                             },
                             'display-2': {
@@ -59,17 +59,17 @@ export function useSettings() {
                                 name: '副显示器',
                                 source: 'builtin',
                                 url: '',
-                                width: 1920,
-                                height: 1080,
+                                width: 1500,
+                                height: 400,
                                 enabled: true,
-                                isSystem: true,
+                                isSystem: false,
                                 description: '辅助显示端，用于补充信息展示'
                             }
                         }
                     };
                 }
                 
-                // 确保系统显示器存在且配置正确
+                // 确保显示端存在且配置正确
                 if (!settings.display.displays['display-1']) {
                     settings.display.displays['display-1'] = {
                         id: 'display-1',
@@ -79,7 +79,7 @@ export function useSettings() {
                         width: 1900,
                         height: 600,
                         enabled: true,
-                        isSystem: true,
+                        isSystem: false,
                         description: '主要显示端，用于主要信息展示'
                     };
                 }
@@ -90,20 +90,12 @@ export function useSettings() {
                         name: '副显示器',
                         source: 'builtin',
                         url: '',
-                        width: 1920,
-                        height: 1080,
+                        width: 1500,
+                        height: 400,
                         enabled: true,
-                        isSystem: true,
+                        isSystem: false,
                         description: '辅助显示端，用于补充信息展示'
                     };
-                }
-                
-                // 确保系统显示器的 isSystem 标记
-                if (settings.display.displays['display-1']) {
-                    settings.display.displays['display-1'].isSystem = true;
-                }
-                if (settings.display.displays['display-2']) {
-                    settings.display.displays['display-2'].isSystem = true;
                 }
                 
                 // 确保显示端配置完整
@@ -137,6 +129,17 @@ export function useSettings() {
         localStorage.setItem('pids_settings_v1', JSON.stringify(settings));
         applyThemeMode();
         applyBlurSetting();
+        
+        // 同步设置到主进程的 electron-store（如果可用）
+        if (typeof window !== 'undefined' && window.electronAPI && window.electronAPI.syncSettings) {
+            try {
+                // 创建一个可序列化的副本，移除不可序列化的内容
+                const serializableSettings = JSON.parse(JSON.stringify(settings));
+                window.electronAPI.syncSettings(serializableSettings);
+            } catch (e) {
+                console.warn('[useSettings] 同步设置到主进程失败:', e);
+            }
+        }
     }
 
     function applyThemeMode() {

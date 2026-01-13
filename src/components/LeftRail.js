@@ -2,7 +2,8 @@ import { useUIState } from '../composables/useUIState.js'
 import { usePidsState } from '../composables/usePidsState.js'
 import { useSettings } from '../composables/useSettings.js'
 import { cloneDisplayState } from '../utils/displayStateSerializer.js'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { showNotification } from '../utils/notificationService.js'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 
 export default {
     name: 'LeftRail',
@@ -30,7 +31,9 @@ export default {
         const releaseNotes = ref([])
         const loadingNotes = ref(false)
         const DISPLAY_SNAPSHOT_KEY = 'metro_pids_display_snapshot'
-        const getDisplaySize = () => {
+        
+        // 使用 computed 让显示端信息响应式更新
+        const currentDisplayInfo = computed(() => {
             // 获取当前活动显示端的配置
             const currentDisplayId = settings?.display?.currentDisplayId || 'display-1';
             const currentDisplay = settings?.display?.displays?.[currentDisplayId];
@@ -49,8 +52,13 @@ export default {
             return { 
                 w: Math.max(100, w), 
                 h: Math.max(100, h),
-                displayId: currentDisplayId
+                displayId: currentDisplayId,
+                displayName: displayConfig?.name || '显示器'
             };
+        });
+        
+        const getDisplaySize = () => {
+            return currentDisplayInfo.value;
         };
         const hasNativeDisplay =
             typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.openDisplay === 'function'
@@ -147,6 +155,47 @@ export default {
             }
             browserDisplayWindow = null
             uiState.showDisplay = false
+        }
+
+        // 检查是否允许打开 display-2
+        const isDisplay2Allowed = async () => {
+            if (!settings.display.display2Mode) {
+                settings.display.display2Mode = 'dev-only'; // 默认值
+            }
+            
+            const mode = settings.display.display2Mode;
+            
+            // 模式 1: disabled - 所有情况下都不允许打开
+            if (mode === 'disabled') {
+                return false;
+            }
+            
+            // 模式 2: enabled - 所有环境下都能打开
+            if (mode === 'enabled') {
+                return true;
+            }
+            
+            // 模式 3: dev-only - 仅在浏览器和框架的开发者模式下打开
+            if (mode === 'dev-only') {
+                // 检查是否在 Electron 环境
+                const isElectron = typeof window !== 'undefined' && window.electronAPI;
+                
+                if (isElectron) {
+                    // Electron 环境：检查是否在开发者模式（未打包）
+                    try {
+                        const isPackaged = await window.electronAPI.isPackaged();
+                        return !isPackaged; // 未打包 = 开发者模式
+                    } catch (e) {
+                        return false;
+                    }
+                } else {
+                    // 浏览器环境：检查 URL 参数或开发者工具
+                    // 简单判断：浏览器环境默认允许（视为开发模式）
+                    return true;
+                }
+            }
+            
+            return false;
         }
 
         const persistDisplaySnapshot = (payload) => {
@@ -265,17 +314,56 @@ export default {
             return win
         }
 
-        const handleDisplayAction = () => {
+        const handleDisplayAction = async () => {
+            // 获取当前要打开的显示端ID
+            const { w, h, displayId } = getDisplaySize();
+            
+            // 检查 display-2 是否允许打开
+            if (displayId === 'display-2') {
+                const allowed = await isDisplay2Allowed();
+                if (!allowed) {
+                    const mode = settings.display.display2Mode || 'dev-only';
+                    let message = '副显示器当前已禁用，无法打开';
+                    if (mode === 'dev-only') {
+                        message = '副显示器仅在开发者模式下可用，当前环境不允许打开';
+                    }
+                    showNotification('副显示器已禁用', message, {
+                        tag: 'display-2-disabled',
+                        urgency: 'normal'
+                    });
+                    return;
+                }
+            }
+            
+            // 确保显示端存在且已启用
+            const targetDisplay = settings?.display?.displays?.[displayId];
+            if (!targetDisplay) {
+                console.warn('[LeftRail] 显示端不存在:', displayId);
+                showNotification('显示端不存在', `显示端 "${displayId}" 不存在，无法打开`, {
+                    tag: 'display-not-found',
+                    urgency: 'normal'
+                });
+                return;
+            }
+            
+            if (!targetDisplay.enabled) {
+                showNotification('显示端已禁用', `显示端 "${targetDisplay.name}" 当前已禁用，无法打开`, {
+                    tag: 'display-disabled',
+                    urgency: 'normal'
+                });
+                return;
+            }
+            
             if (hasNativeDisplay) {
                 try {
-                    const { w, h, displayId } = getDisplaySize();
                     // 传递显示端ID给Electron API
                     window.electronAPI.openDisplay(w, h, displayId);
                 } catch (e) {
                     try { 
-                        const { w, h } = getDisplaySize();
                         window.electronAPI.openDisplay(w, h); 
-                    } catch (e) {}
+                    } catch (e) {
+                        console.error('[LeftRail] 打开显示端失败:', e);
+                    }
                 }
                 return
             }
@@ -565,7 +653,8 @@ export default {
             closeReleaseNotes,
             formatReleaseBody,
             openDevWindow,
-            shouldShowDevButton
+            shouldShowDevButton,
+            currentDisplayInfo
         }
     },
     template: `
@@ -596,7 +685,7 @@ export default {
             class="ft-btn" 
             :style="displayBtnStyle()"
             @click="handleDisplayAction()" 
-            title="显示预览"
+            :title="'显示预览 - ' + currentDisplayInfo.displayName"
         >
             <i class="fas fa-desktop" style="font-size:20px;"></i>
         </button>

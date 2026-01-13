@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>开发者模式 - Metro PIDS</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css" onerror="console.warn('[DevWindow] Font Awesome 加载失败，使用本地备用图标'); var fallback = document.createElement('link'); fallback.rel = 'stylesheet'; fallback.href = 'assets/local-icons.css'; document.head.appendChild(fallback);">
     <style>
         * {
             margin: 0;
@@ -163,6 +163,10 @@
             font-size: 12px;
             font-weight: 600;
             margin-left: 8px;
+        }
+        
+        .status-inline {
+            margin-left: 12px;
         }
         
         .status-active {
@@ -551,6 +555,79 @@
             <button class="btn btn-secondary" onclick="togglePerformanceMonitor()">
                 <i class="fas fa-play"></i> 开始/停止监控
             </button>
+        </div>
+
+        <!-- 运控云控测试 -->
+        <div class="section">
+            <h2><i class="fas fa-cloud"></i> 运控云控测试（本地 API / GitHub）</h2>
+            <div class="test-group">
+                <h3>本地运控（API 模式）</h3>
+                <div class="input-group">
+                    <label for="cloud-local-api-base">本地 API 地址（apiBase）</label>
+                    <input
+                        id="cloud-local-api-base"
+                        type="text"
+                        value="http://localhost:9000"
+                        placeholder="例如：http://localhost:9000"
+                        title="本地运控 API 地址（例如：http://localhost:9000）"
+                    />
+                </div>
+                <button class="btn btn-success" onclick="testLocalCloudLines()">
+                    <i class="fas fa-cloud-download-alt"></i> 拉取本地预设线路 (/preset)
+                </button>
+                <span id="cloud-local-status" class="status-badge status-inactive status-inline">未测试</span>
+            </div>
+            <div class="test-group">
+                <h3>GitHub 仓库运控</h3>
+                <div class="input-group">
+                    <label for="cloud-gh-owner">GitHub 用户名 (owner)</label>
+                    <input
+                        id="cloud-gh-owner"
+                        type="text"
+                        value="tanzhouxkong"
+                        placeholder="例如：tanzhouxkong"
+                        title="GitHub 用户名（owner）"
+                    />
+                </div>
+                <div class="input-group">
+                    <label for="cloud-gh-repo">仓库名 (repo)</label>
+                    <input
+                        id="cloud-gh-repo"
+                        type="text"
+                        value="Metro-PIDS-"
+                        placeholder="例如：Metro-PIDS-"
+                        title="GitHub 仓库名（repo）"
+                    />
+                </div>
+                <div class="input-group">
+                    <label for="cloud-gh-branch">分支 (branch)</label>
+                    <input
+                        id="cloud-gh-branch"
+                        type="text"
+                        value="main"
+                        placeholder="例如：main"
+                        title="GitHub 分支名称（branch）"
+                    />
+                </div>
+                <div class="input-group">
+                    <label for="cloud-gh-path">路径 (path)</label>
+                    <input
+                        id="cloud-gh-path"
+                        type="text"
+                        value="preset-lines"
+                        placeholder="例如：preset-lines"
+                        title="仓库中的目录路径（path）"
+                    />
+                </div>
+                <button class="btn btn-success" onclick="testGithubCloudLines()">
+                    <i class="fab fa-github"></i> 测试 GitHub 线路列表
+                </button>
+                <span id="cloud-gh-status" class="status-badge status-inactive status-inline">未测试</span>
+            </div>
+            <div class="test-group">
+                <h3>数据对比结果</h3>
+                <div id="cloud-lines-result" class="code-block">尚未测试本地/GitHub 运控数据。</div>
+            </div>
         </div>
         
         <div class="section">
@@ -996,6 +1073,103 @@
             
             document.getElementById('debug-info').textContent = JSON.stringify(info, null, 2);
         }
+
+        // ===== 运控云控测试：本地 API & GitHub =====
+        const CLOUD_GH_CONFIG_KEY = 'metro_pids_cloud_github_config';
+
+        function loadGithubCloudConfig() {
+            try {
+                const raw = localStorage.getItem(CLOUD_GH_CONFIG_KEY);
+                if (!raw) return;
+                const cfg = JSON.parse(raw);
+                if (cfg.owner) document.getElementById('cloud-gh-owner').value = cfg.owner;
+                if (cfg.repo) document.getElementById('cloud-gh-repo').value = cfg.repo;
+                if (cfg.branch) document.getElementById('cloud-gh-branch').value = cfg.branch;
+                if (cfg.path) document.getElementById('cloud-gh-path').value = cfg.path;
+            } catch (e) {
+                console.warn('加载 GitHub 云控配置失败:', e);
+            }
+        }
+
+        function saveGithubCloudConfig(owner, repo, branch, pathValue) {
+            try {
+                const cfg = { owner, repo, branch, path: pathValue };
+                localStorage.setItem(CLOUD_GH_CONFIG_KEY, JSON.stringify(cfg));
+            } catch (e) {
+                console.warn('保存 GitHub 云控配置失败:', e);
+            }
+        }
+
+        async function testLocalCloudLines() {
+            const apiBaseInput = document.getElementById('cloud-local-api-base');
+            const statusEl = document.getElementById('cloud-local-status');
+            const resultEl = document.getElementById('cloud-lines-result');
+            const apiBase = (apiBaseInput.value || 'http://localhost:9000').replace(/\/+$/, '');
+            const url = apiBase + '/preset';
+            try {
+                statusEl.textContent = '请求中...';
+                statusEl.className = 'status-badge status-dev';
+                const res = await fetch(url);
+                const json = await res.json();
+                const count = Array.isArray(json.lines) ? json.lines.length : 0;
+                resultEl.textContent = `本地 API (${url}) 返回 ${count} 条线路：\n` + JSON.stringify(json, null, 2);
+                statusEl.textContent = `成功 (${count} 条)`;
+                statusEl.className = 'status-badge status-active';
+                addLog('本地云控 API 测试成功', 'success', { url, count });
+            } catch (e) {
+                statusEl.textContent = '失败';
+                statusEl.className = 'status-badge status-inactive';
+                resultEl.textContent = `本地 API 请求失败：${e.message}`;
+                addLog('本地云控 API 测试失败', 'error', { url, error: e.message });
+            }
+        }
+
+        async function testGithubCloudLines() {
+            const owner = document.getElementById('cloud-gh-owner').value.trim();
+            const repo = document.getElementById('cloud-gh-repo').value.trim();
+            const branch = document.getElementById('cloud-gh-branch').value.trim() || 'main';
+            const pathValue = document.getElementById('cloud-gh-path').value.trim() || 'preset-lines';
+            const statusEl = document.getElementById('cloud-gh-status');
+            const resultEl = document.getElementById('cloud-lines-result');
+
+            if (!owner || !repo) {
+                alert('请填写 GitHub owner 和 repo');
+                return;
+            }
+
+            saveGithubCloudConfig(owner, repo, branch, pathValue);
+
+            const apiUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeURIComponent(pathValue)}?ref=${encodeURIComponent(branch)}`;
+            try {
+                statusEl.textContent = '请求中...';
+                statusEl.className = 'status-badge status-dev';
+                const res = await fetch(apiUrl, {
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(`HTTP ${res.status}: ${text}`);
+                }
+                const list = await res.json();
+                const files = Array.isArray(list)
+                    ? list.filter(item => item.type === 'file' && /\.json$/i.test(item.name))
+                    : [];
+                const fileNames = files.map(f => f.name);
+                resultEl.textContent =
+                    `GitHub (${owner}/${repo}@${branch}/${pathValue}) 返回 ${fileNames.length} 个 JSON 文件：\n` +
+                    JSON.stringify(fileNames, null, 2);
+                statusEl.textContent = `成功 (${fileNames.length} 个文件)`;
+                statusEl.className = 'status-badge status-active';
+                addLog('GitHub 运控测试成功', 'success', { apiUrl, files: fileNames });
+            } catch (e) {
+                statusEl.textContent = '失败';
+                statusEl.className = 'status-badge status-inactive';
+                resultEl.textContent = `GitHub 请求失败：${e.message}\nURL: ${apiUrl}`;
+                addLog('GitHub 运控测试失败', 'error', { apiUrl, error: e.message });
+            }
+        }
         
         // 打开开发者工具
         function openDevTools() {
@@ -1275,6 +1449,7 @@
             showAppInfo();
             refreshSettings();
             initBroadcastChannel();
+            loadGithubCloudConfig();
             loadF12DevToolsSetting(); // 加载F12开发者工具设置
             addLog('开发者模式初始化完成', 'success');
             

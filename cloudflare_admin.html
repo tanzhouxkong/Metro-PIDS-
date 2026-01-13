@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Metro-PIDS Cloudflare 运控管理工具</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    p.desc {
+      margin-top: 0;
+      color: #666;
+      font-size: 13px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit,minmax(240px,1fr));
+      gap: 12px;
+    }
+    .field {
+      margin-bottom: 12px;
+    }
+    .field label {
+      display: block;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    .field input,
+    .field textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #d9d9d9;
+      font-size: 13px;
+    }
+    .field textarea {
+      min-height: 160px;
+      font-family: Consolas,Menlo,monospace;
+      resize: vertical;
+    }
+    .btn-row {
+      margin-top: 8px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      margin-right: 6px;
+      margin-bottom: 6px;
+      color: #fff;
+      background: #1677ff;
+    }
+    .btn.secondary {
+      background: #d9d9d9;
+      color: #333;
+    }
+    .btn.danger {
+      background: #ff4d4f;
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .status {
+      font-size: 12px;
+      color: #666;
+      margin-left: 8px;
+    }
+    .status.ok { color: #52c41a; }
+    .status.err { color: #ff4d4f; }
+    #list-output {
+      font-family: Consolas,Menlo,monospace;
+      font-size: 12px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 10px;
+      border-radius: 6px;
+      max-height: 260px;
+      overflow: auto;
+      white-space: pre;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Metro-PIDS Cloudflare 运控管理工具（独立）</h1>
+      <p class="desc">
+        这是一个 <strong>独立的本地控制界面</strong>，专门用来管理部署在 Cloudflare Worker 上的预设线路。
+        页面不会自动把配置上传到任何地方，所有敏感信息（如 Token）只保存在浏览器本地。
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>基础配置</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="api-base">Cloudflare Worker 地址 (apiBase)</label>
+          <input id="api-base" type="text" placeholder="例如：https://metro-pids-cloud.xxx.workers.dev" />
+        </div>
+        <div class="field">
+          <label for="api-token">写操作 Token（可选，仅你自己填）</label>
+          <input id="api-token" type="password" placeholder="与 Worker CLOUD_TOKEN 一致，用于写操作" />
+        </div>
+      </div>
+      <button class="btn secondary" id="btn-save-conf">保存到本地</button>
+      <span class="status" id="conf-status"></span>
+    </div>
+
+    <div class="card">
+      <h2>线路列表 / 查询</h2>
+      <div class="btn-row">
+        <button class="btn" id="btn-list">列出所有线路 (GET /preset)</button>
+      </div>
+      <div class="field">
+        <label for="line-list">结果</label>
+        <pre id="list-output">尚未请求。</pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>单条线路操作（读 / 写 / 删）</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="line-name">线路名称 (meta.lineName)</label>
+          <input id="line-name" type="text" placeholder="例如：上海地铁2号线" />
+        </div>
+        <div class="field">
+          <label for="line-file">本地 JSON 文件路径（可选，仅显示用途）</label>
+          <input id="line-file" type="text" placeholder="例如：preset-lines/上海地铁2号线.json（仅做备注）" />
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn secondary" id="btn-get">读取 (GET /preset/:lineName)</button>
+        <button class="btn" id="btn-put">上传/更新 (PUT /preset/:lineName)</button>
+        <button class="btn danger" id="btn-del">删除 (DELETE /preset/:lineName)</button>
+      </div>
+      <div class="field">
+        <label for="line-json">线路 JSON 内容（编辑后再点 上传/更新）</label>
+        <textarea id="line-json" placeholder='{"meta": {"lineName": "示例线路"}, "stations": [...]}'></textarea>
+      </div>
+      <span class="status" id="line-status"></span>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'metro_pids_cf_admin_conf';
+
+    function loadConfig() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+
+    function saveConfig(conf) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(conf));
+    }
+
+    function getConf() {
+      const apiBase = document.getElementById('api-base').value.trim();
+      const token = document.getElementById('api-token').value.trim();
+      return { apiBase, token };
+    }
+
+    function showConfStatus(msg, ok) {
+      const el = document.getElementById('conf-status');
+      el.textContent = msg || '';
+      el.className = 'status ' + (ok ? 'ok' : 'err');
+    }
+
+    function showLineStatus(msg, ok) {
+      const el = document.getElementById('line-status');
+      el.textContent = msg || '';
+      el.className = 'status ' + (ok ? 'ok' : 'err');
+    }
+
+    function buildHeaders(bodyNeeded) {
+      const { token } = getConf();
+      const headers = { Accept: 'application/json' };
+      if (bodyNeeded) headers['Content-Type'] = 'application/json';
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      return headers;
+    }
+
+    async function callApi(method, path, body) {
+      const { apiBase } = getConf();
+      if (!apiBase) throw new Error('请先填写 Cloudflare Worker 地址 (apiBase)');
+      const url = apiBase.replace(/\/+$/, '') + path;
+      const res = await fetch(url, {
+        method,
+        headers: buildHeaders(!!body),
+        body: body ? JSON.stringify(body) : undefined
+      });
+      const text = await res.text();
+      let data;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = text;
+      }
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+      return data;
+    }
+
+    // 初始化
+    window.addEventListener('DOMContentLoaded', () => {
+      const conf = loadConfig();
+      if (conf) {
+        if (conf.apiBase) document.getElementById('api-base').value = conf.apiBase;
+        if (conf.token) document.getElementById('api-token').value = conf.token;
+      }
+
+      document.getElementById('btn-save-conf').addEventListener('click', () => {
+        const confNow = getConf();
+        if (!confNow.apiBase) {
+          showConfStatus('请填写 apiBase', false);
+          return;
+        }
+        saveConfig(confNow);
+        showConfStatus('已保存到本地（仅当前浏览器）', true);
+      });
+
+      document.getElementById('btn-list').addEventListener('click', async () => {
+        const out = document.getElementById('list-output');
+        out.textContent = '请求中...';
+        showLineStatus('', true);
+        try {
+          const data = await callApi('GET', '/preset');
+          out.textContent = JSON.stringify(data, null, 2);
+        } catch (e) {
+          out.textContent = '请求失败：' + e.message;
+        }
+      });
+
+      document.getElementById('btn-get').addEventListener('click', async () => {
+        const name = document.getElementById('line-name').value.trim();
+        if (!name) {
+          showLineStatus('请先填写线路名称', false);
+          return;
+        }
+        showLineStatus('请求中...', true);
+        try {
+          const data = await callApi('GET', '/preset/' + encodeURIComponent(name));
+          document.getElementById('line-json').value = JSON.stringify(data.line || data, null, 2);
+          showLineStatus('读取成功', true);
+        } catch (e) {
+          showLineStatus('读取失败：' + e.message, false);
+        }
+      });
+
+      document.getElementById('btn-put').addEventListener('click', async () => {
+        const name = document.getElementById('line-name').value.trim();
+        const text = document.getElementById('line-json').value.trim();
+        if (!name) {
+          showLineStatus('请先填写线路名称', false);
+          return;
+        }
+        if (!text) {
+          showLineStatus('请在文本框中填入线路 JSON', false);
+          return;
+        }
+        showLineStatus('上传中...', true);
+        try {
+          const json = JSON.parse(text);
+          if (!json.meta) json.meta = {};
+          json.meta.lineName = name;
+          const data = await callApi('PUT', '/preset/' + encodeURIComponent(name), json);
+          document.getElementById('line-json').value = JSON.stringify(data.line || json, null, 2);
+          showLineStatus('上传/更新成功', true);
+        } catch (e) {
+          showLineStatus('上传失败：' + e.message, false);
+        }
+      });
+
+      document.getElementById('btn-del').addEventListener('click', async () => {
+        const name = document.getElementById('line-name').value.trim();
+        if (!name) {
+          showLineStatus('请先填写线路名称', false);
+          return;
+        }
+        if (!confirm(`确定要删除 "${name}" 吗？`)) return;
+        showLineStatus('删除中...', true);
+        try {
+          await callApi('DELETE', '/preset/' + encodeURIComponent(name));
+          showLineStatus('删除成功', true);
+          // 不清空 JSON 内容，方便对比
+        } catch (e) {
+          showLineStatus('删除失败：' + e.message, false);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+
+

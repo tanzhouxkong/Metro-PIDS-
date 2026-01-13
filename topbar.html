@@ -4,25 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Topbar - Metro PIDS</title>
-    <script>
-        (function(){
-            var cdn = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
-            var link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = cdn;
-            document.head.appendChild(link);
-            setTimeout(function(){
-                var loaded = false;
-                try { loaded = !!(window.getComputedStyle && window.getComputedStyle(document.body, ':before')); } catch(e) { loaded = false; }
-                if (!loaded) {
-                    var l = document.createElement('link');
-                    l.rel = 'stylesheet';
-                    l.href = 'assets/local-icons.css';
-                    document.head.appendChild(l);
-                }
-            }, 2000);
-        })();
-    </script>
+    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css" onerror="console.warn('[Topbar] Font Awesome 加载失败，使用本地备用图标'); var fallback = document.createElement('link'); fallback.rel = 'stylesheet'; fallback.href = 'assets/local-icons.css'; document.head.appendChild(fallback);">
     <style>
         :root { 
             --theme: #00b894; 

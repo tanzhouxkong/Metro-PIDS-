@@ -16,330 +16,284 @@ export default {
     let bcNew = null
 
     // ============ 计算属性 ============
-    const themeColor = computed(() => {
-      return appData.value?.meta?.themeColor || '#009F4D'
-    })
-
-    const lineNumber = computed(() => {
-      if (!appData.value?.meta?.lineName) return '--'
-      const num = appData.value.meta.lineName.replace(/[^0-9]/g, '')
-      return num || appData.value.meta.lineName
-    })
-
     const stations = computed(() => {
       return appData.value?.stations || []
     })
 
-    const destinationCn = computed(() => {
-      if (stations.value.length === 0) return '--'
-      return stations.value[stations.value.length - 1].name || '--'
+    // 颜色标记解析：将 <color>文字</> 转为带颜色的 HTML
+    const parseColorMarkup = (text) => {
+      if (!text || typeof text !== 'string') return text
+      const regex = /<([^>]+)>([^<]*)<\/>/g
+      let result = text
+      let match
+      const colorNames = {
+        red: 'red',
+        blue: 'blue',
+        green: 'green',
+        yellow: 'yellow',
+        orange: 'orange',
+        purple: 'purple',
+        pink: 'pink',
+        black: 'black',
+        white: 'white',
+        gray: 'gray',
+        grey: 'grey',
+        brown: 'brown',
+        cyan: 'cyan',
+        magenta: 'magenta',
+        lime: 'lime',
+        navy: 'navy',
+        olive: 'olive',
+        teal: 'teal',
+        aqua: 'aqua',
+        silver: 'silver',
+        maroon: 'maroon',
+        fuchsia: 'fuchsia'
+      }
+      while ((match = regex.exec(text)) !== null) {
+        const colorValue = match[1].trim()
+        const content = match[2]
+        const fullMatch = match[0]
+        let cssColor = ''
+        if (colorNames[colorValue.toLowerCase()]) {
+          cssColor = colorNames[colorValue.toLowerCase()]
+        } else if (/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(colorValue)) {
+          cssColor = colorValue
+        } else if (/^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(,\s*[\d.]+\s*)?\)$/.test(colorValue)) {
+          cssColor = colorValue
+        }
+        if (cssColor) {
+          const escapedContent = content
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;')
+          const coloredSpan = `<span style="color:${cssColor};">${escapedContent}</span>`
+          result = result.replace(fullMatch, coloredSpan)
+        }
+      }
+      return result
+    }
+
+    // 去除颜色标记，保留纯文本
+    const stripColorMarkup = (text) => {
+      if (!text || typeof text !== 'string') return text
+      return text.replace(/<[^>]+>([^<]*)<\/>/g, '$1')
+    }
+
+    const rawLineName = computed(() => appData.value?.meta?.lineName || '--')
+
+    const lineNameHTML = computed(() => parseColorMarkup(rawLineName.value))
+
+    const lineNumber = computed(() => {
+      const plain = stripColorMarkup(rawLineName.value)
+      const num = plain.replace(/[^0-9A-Za-z]/g, '')
+      return num || plain || '--'
     })
 
-    const destinationEn = computed(() => {
-      if (stations.value.length === 0) return '--'
-      return stations.value[stations.value.length - 1].en || '--'
+    // 路线信息：路线号
+    const routeNumber = computed(() => {
+      return lineNumber.value || '--'
     })
 
+    // 路线方向：起始站 → 终点站
+    const routeDirection = computed(() => {
+      if (stations.value.length === 0) return '-- → --'
+      const startStation = stations.value[0]?.name || '--'
+      const endStation = stations.value[stations.value.length - 1]?.name || '--'
+      return `${startStation} → ${endStation}`
+    })
+
+    // 当前活动站点索引
     const activeStationIdx = computed(() => {
       if (stations.value.length === 0) return 0
       if (rt.value.state === 1) {
+        // 运行中，指向下一站
         return Math.min(rt.value.idx + 1, stations.value.length - 1)
       }
+      // 到站状态，指向当前站
       return rt.value.idx
     })
 
-    const nextStopCn = computed(() => {
-      if (stations.value.length === 0) return '--'
-      return stations.value[activeStationIdx.value]?.name || '--'
-    })
-
-    const nextStopEn = computed(() => {
-      if (stations.value.length === 0) return '--'
-      return stations.value[activeStationIdx.value]?.en || '--'
-    })
-
-    const isArriving = computed(() => {
-      return rt.value.state === 0
-    })
-
-    const nextStopLabel = computed(() => {
-      return isArriving.value ? '当前到达 Arriving' : '即将到达 Next Stop'
-    })
-
-    const currentCarriage = computed(() => {
-      return '3号车厢'
-    })
-
-    const doorWillOpen = computed(() => {
-      if (!appData.value || stations.value.length === 0) return false
-      const currentStation = stations.value[rt.value.idx]
-      if (!currentStation) return false
-      // 检查车门方向
-      const door = currentStation._effectiveDoor || currentStation.door || 'left'
-      return door === 'right'
-    })
-
-    const doorTextCn = computed(() => {
-      return doorWillOpen.value ? '对侧开门' : '左侧开门'
-    })
-
-    const doorTextEn = computed(() => {
-      return doorWillOpen.value ? 'Opposite Door' : 'Left Door'
-    })
-
     // 地图相关计算
-    const SCREEN_WIDTH = 1900 // 屏幕宽度
-    const MARGIN = 100 // 左右边距（各50px）
-    const AVAILABLE_WIDTH = SCREEN_WIDTH - MARGIN // 可用宽度
+    const SCREEN_WIDTH = 1500 // 屏幕宽度
+    const PADDING = 40 // 左右内边距
+    const PADDING_LEFT = 20 // 左边距（用于站点）
+    const PADDING_RIGHT = 20 // 右边距（用于站点）
+    const ST_WIDTH = 30 // 每个站点固定宽度
     
-    // 根据站点数量动态计算站间距，使得所有站点都能显示在屏幕上
-    const ST_WIDTH = computed(() => {
-      if (stations.value.length === 0) return 160
-      // 最后一个站点需要半个宽度，第一个站点也需要半个宽度
-      // 所以总宽度 = (stations.length - 1) * ST_WIDTH + ST_WIDTH = stations.length * ST_WIDTH
-      return AVAILABLE_WIDTH / stations.value.length
+    // 计算可用宽度
+    const AVAILABLE_WIDTH = computed(() => {
+      return SCREEN_WIDTH - PADDING * 2 - PADDING_LEFT - PADDING_RIGHT
     })
 
-    // 基于主题色生成渐变色变体的函数
-    function hexToRgb(hex) {
-      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
-      return result ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16)
-      } : { r: 0, g: 158, b: 77 } // 默认绿色
-    }
-
-    function rgbToHex(r, g, b) {
-      return '#' + [r, g, b].map(x => {
-        const hex = Math.round(x).toString(16)
-        return hex.length === 1 ? '0' + hex : hex
-      }).join('')
-    }
-
-    function adjustBrightness(hex, percent) {
-      const rgb = hexToRgb(hex)
-      const r = Math.min(255, Math.max(0, rgb.r * (1 + percent)))
-      const g = Math.min(255, Math.max(0, rgb.g * (1 + percent)))
-      const b = Math.min(255, Math.max(0, rgb.b * (1 + percent)))
-      return rgbToHex(r, g, b)
-    }
-
-    function adjustSaturation(hex, percent) {
-      const rgb = hexToRgb(hex)
-      const gray = rgb.r * 0.299 + rgb.g * 0.587 + rgb.b * 0.114
-      const r = Math.min(255, Math.max(0, gray + (rgb.r - gray) * (1 + percent)))
-      const g = Math.min(255, Math.max(0, gray + (rgb.g - gray) * (1 + percent)))
-      const b = Math.min(255, Math.max(0, gray + (rgb.b - gray) * (1 + percent)))
-      return rgbToHex(r, g, b)
-    }
-
-    // 基于主题色生成相邻段的渐变颜色（相邻段有轻微差异，但整体保持统一）
-    const segmentColors = computed(() => {
-      const baseColor = themeColor.value || '#009F4D'
+    // 根据站点数量动态计算站间距
+    const stationGap = computed(() => {
+      const totalStations = stations.value.length
+      if (totalStations <= 1) return 0
       
-      // 生成6组渐变色，每组内部有轻微渐变（从稍深到稍浅）
-      // 相邻组之间有非常轻微的颜色差异（±2-3%亮度），保持整体统一感
-      const brightnessOffsets = [
-        0,      // 基准色
-        0.02,   // +2%亮度（非常轻微）
-        -0.02,  // -2%亮度（非常轻微）
-        0.03,   // +3%亮度
-        -0.01,  // -1%亮度
-        0.02,   // +2%亮度
-      ]
-
-      return brightnessOffsets.map(offset => {
-        // 每段内部有轻微渐变：从基准色-5%到基准色+5%
-        const color1 = adjustBrightness(baseColor, offset - 0.05) // 稍深（-5%）
-        const color2 = adjustBrightness(baseColor, offset + 0.05) // 稍浅（+5%）
-        return [color1, color2]
-      })
-    })
-
-    const railWidth = computed(() => {
-      if (stations.value.length === 0) return 0
-      // 轨道宽度等于所有站点占用的宽度
-      return stations.value.length * ST_WIDTH.value
-    })
-
-    // 线路条高度，根据站点间距按比例计算（原始比例：24/160 = 0.15）
-    const railHeight = computed(() => {
-      return ST_WIDTH.value * 0.15
-    })
-
-    // 箭头大小，根据站点间距按比例计算
-    const arrowSize = computed(() => {
-      return ST_WIDTH.value * 0.15 // 箭头高度（border-top/bottom）
-    })
-
-    // 箭头宽度，根据站点间距按比例计算（原始比例：30/160 = 0.1875）
-    const arrowWidth = computed(() => {
-      return ST_WIDTH.value * 0.1875 // 箭头宽度（border-left）
-    })
-
-    // 计算每段线路的信息
-    const railSegments = computed(() => {
-      if (stations.value.length < 2) return []
+      // 计算所有站点占用的总宽度
+      const totalStationsWidth = totalStations * ST_WIDTH
       
-      const colors = segmentColors.value
-      const stWidth = ST_WIDTH.value
-      const segments = []
-      for (let i = 0; i < stations.value.length - 1; i++) {
-        // 站点中心位置
-        const station1Center = (i * stWidth) + (stWidth / 2)
-        const station2Center = ((i + 1) * stWidth) + (stWidth / 2)
-        const fullWidth = station2Center - station1Center
-        
-        const segmentColor = colors[i % colors.length]
-        
-        // 判断这段是否已通过
-        const isPassed = i < activeStationIdx.value
-        // 判断是否是当前运行的段
-        const isCurrent = rt.value.state === 1 && i === rt.value.idx
-        
-        let segmentLeft, segmentWidth
-        
-        // 第一个线段：从第一个站点中心开始，只显示到中间位置
-        // 第一个站点占据 0 到 stWidth，中心在 stWidth/2
-        // 线段从 stWidth/2 开始，宽度是 fullWidth * 0.5 = stWidth * 0.5
-        // 结束位置是 stWidth，不会延伸到第一个站点之前（0位置）
-        if (i === 0) {
-          segmentLeft = station1Center // stWidth / 2
-          segmentWidth = fullWidth * 0.5 // stWidth * 0.5
-          // 确保线段不会延伸到第一个站点之前（位置0）
-          // 线段从 stWidth/2 开始，宽度是 stWidth/2，结束在 stWidth，这是正确的
-        }
-        // 最后一个线段：从中间位置开始，到最后一个站点中心结束
-        // 最后一个站点占据 (stations.length - 1) * stWidth 到 stations.length * stWidth
-        // 中心在 (stations.length - 1) * stWidth + stWidth / 2
-        // 线段从 (stations.length - 1) * stWidth 开始，宽度是 stWidth * 0.5
-        // 结束在最后一个站点中心，不会延伸到最后一个站点之后
-        else if (i === stations.value.length - 2) {
-          segmentLeft = station1Center + (fullWidth * 0.5) // (stations.length - 1) * stWidth
-          segmentWidth = fullWidth * 0.5 // stWidth * 0.5
-          // 确保线段不会延伸到最后一个站点之后
-          // 线段从 (stations.length - 1) * stWidth 开始，宽度是 stWidth/2
-          // 结束在 (stations.length - 1) * stWidth + stWidth/2 = 最后一个站点中心，这是正确的
-        }
-        // 中间线段：显示中间50%的部分
-        else {
-          segmentWidth = fullWidth * 0.5
-          segmentLeft = station1Center + (fullWidth * 0.25)
-        }
-        
-        segments.push({
-          index: i,
-          left: segmentLeft,
-          width: segmentWidth,
-          colors: segmentColor,
-          isPassed: isPassed,
-          isCurrent: isCurrent,
-          progress: 1 // 所有段都完整显示（100%），通过颜色区分状态
-        })
-      }
-      return segments
-    })
-
-    const progressWidth = computed(() => {
-      if (stations.value.length === 0) return 0
+      // 计算剩余空间
+      const remainingSpace = AVAILABLE_WIDTH.value - totalStationsWidth
       
-      const stWidth = ST_WIDTH.value
-      let progressPx = 0
-      
-      if (rt.value.state === 0) {
-        // 到站状态：箭头指向 activeIdx 圆心
-        progressPx = (activeStationIdx.value * stWidth) + (stWidth / 2)
-      } else {
-        // 运行状态：箭头指向两站中间
-        const startX = (rt.value.idx * stWidth) + (stWidth / 2)
-        const endX = ((rt.value.idx + 1) * stWidth) + (stWidth / 2)
-        progressPx = startX + (endX - startX) * 0.6 // 走到 60% 位置
+      // 如果有剩余空间，平均分配到站点之间的间距
+      if (remainingSpace > 0) {
+        return remainingSpace / (totalStations - 1)
       }
       
-      return progressPx + 15 // +15px 让箭头尖端盖住圆心
+      // 如果空间不足，返回0（站点会重叠，但至少能显示）
+      return 0
     })
 
-    // 摄像机固定，不移动 - 轨道居中显示
-    const trackTranslateX = computed(() => {
-      if (stations.value.length === 0) return 0
-      // 让轨道在屏幕上居中显示
-      // track-wrap 从屏幕中心开始（padding-left: 50vw），轨道内容需要偏移到居中
-      const screenCenter = SCREEN_WIDTH / 2
-      const trackCenter = railWidth.value / 2
-      // 计算偏移量：让轨道中心对齐屏幕中心
-      return screenCenter - trackCenter
+    // 计算每个站点的水平位置（根据站点数量动态分布）
+    const getStationPosition = (index) => {
+      const totalStations = stations.value.length
+      if (totalStations === 0) return PADDING_LEFT
+      if (totalStations === 1) return PADDING_LEFT + (AVAILABLE_WIDTH.value - ST_WIDTH) / 2
+      
+      // 计算每个站点之间的间距
+      const gap = stationGap.value
+      
+      // 计算位置：左边距 + 索引 * (站点宽度 + 间距)
+      return PADDING_LEFT + index * (ST_WIDTH + gap)
+    }
+
+    // 计算右边边缘位置（半圆连接在右边屏幕边缘）
+    const rightEdgePosition = computed(() => {
+      return SCREEN_WIDTH - PADDING - PADDING_RIGHT
     })
 
-    // ============ 方法 ============
+    // 使用显示器1的环线实现方式
+    // 计算半圆的半径和位置（参考显示器1的cornerR和trackGap）
+    const trackGap = 35 // 上排到下排的距离（与 .track-lines 的高度一致）
+    const cornerR = 5 // 半圆半径（间隙约5像素）
+    const semicircleRadius = computed(() => {
+      return cornerR
+    })
+    
+    // 计算半圆路径的关键点（参考显示器1的路径计算方式）
+    const semicirclePath = computed(() => {
+      // 注意：track-lines 内部坐标系是从左边 padding 开始算起，
+      // 为了让半胶囊尽量贴近最右侧，这里在直线的右端基础上再向右偏移 10px
+      const x2 = rightEdgePosition.value - PADDING_LEFT + 10
+
+      // 直线高度为 4px，中心分别在 2px 和 trackGap - 2px
+      const lineHeight = 4
+      const lineCenterOffset = lineHeight / 2 // 2px
+      const yTop = lineCenterOffset                  // 上侧直线中心：2
+      const yBottom = trackGap - lineCenterOffset    // 下侧直线中心：35 - 2 = 33
+      const r = cornerR
+      
+      // 从上侧直线中心 (x2, yTop) 出发，绘制右侧半胶囊，到下侧直线中心 (x2, yBottom)
+      return `M ${x2} ${yTop} L ${x2 - 10} ${yTop} A ${r} ${r} 0 0 1 ${x2 - 10 + r} ${yTop + r} L ${x2 - 10 + r} ${yBottom - r} A ${r} ${r} 0 0 1 ${x2 - 10} ${yBottom} L ${x2} ${yBottom}`
+    })
+
+    // 获取站点状态类
     function getStationClass(index) {
       if (index < activeStationIdx.value) {
-        return 'passed'
-      } else if (index === activeStationIdx.value) {
-        return 'active'
+        return 'passed' // 已过站：红色
       } else {
-        return 'future'
+        return 'future' // 未过站：黑色（包括当前站）
       }
     }
 
-    // 获取段的背景样式
-    function getSegmentBackground(segment) {
-      const [color1, color2] = segment.colors
+    // 判断是否为当前站点
+    function isCurrentStation(index) {
+      return index === activeStationIdx.value
+    }
+
+    // 判断站点是否已过站
+    function isPassed(index) {
+      return index < activeStationIdx.value
+    }
+
+    // 所有站点，前半部分在上排，后半部分在下排
+    // 上排从左到右覆盖整个屏幕，下排从右到左覆盖整个屏幕
+    const allStationsWithRow = computed(() => {
+      const totalStations = stations.value.length
+      const midPoint = Math.ceil(totalStations / 2) // 上排站点数量
       
-      // 已通过的段：显示灰色
-      if (segment.isPassed) {
-        return 'linear-gradient(to right, #d0d0d0, #e0e0e0)' // 灰色渐变
+      return stations.value.map((station, index) => {
+        return {
+          ...station,
+          index,
+          isPassed: isPassed(index),
+          isCurrent: isCurrentStation(index),
+          // 前半部分站点在上排，后半部分站点在下排
+          isTopRow: index < midPoint
+        }
+      })
+    })
+    
+    // 计算上排站点的位置（从左到右，覆盖整个屏幕宽度）
+    const getTopStationPosition = (index) => {
+      const totalStations = stations.value.length
+      const midPoint = Math.ceil(totalStations / 2)
+      
+      if (index >= midPoint) return 0 // 下排站点，不在上排显示
+      if (totalStations === 0) return PADDING_LEFT
+      if (midPoint === 1) return PADDING_LEFT + (rightEdgePosition.value - PADDING_LEFT - ST_WIDTH) / 2
+      
+      // 上排站点从左到右，均匀分布在整个屏幕宽度上
+      const gap = (rightEdgePosition.value - PADDING_LEFT - midPoint * ST_WIDTH) / (midPoint - 1)
+      return PADDING_LEFT + index * (ST_WIDTH + gap)
+    }
+    
+    // 计算下排站点的位置（从左到右，与上排对齐）
+    const getBottomStationPosition = (index) => {
+      const totalStations = stations.value.length
+      const midPoint = Math.ceil(totalStations / 2)
+      
+      if (index < midPoint) return 0 // 上排站点，不在下排显示
+      if (totalStations === 0) return PADDING_LEFT
+      
+      // 下排站点索引范围：midPoint 到 totalStations-1
+      const bottomCount = totalStations - midPoint
+      const bottomIndex = index - midPoint // 下排中的相对索引（0到bottomCount-1）
+      
+      if (bottomCount === 1) {
+        // 只有一个下排站点，居中显示
+        return PADDING_LEFT + (rightEdgePosition.value - PADDING_LEFT - ST_WIDTH) / 2
       }
       
-      // 未来段：显示高亮（使用原始颜色）
-      return `linear-gradient(to right, ${color1}, ${color2})`
+      // 计算间距，均匀分布在整个屏幕宽度上（与上排使用相同的计算方式）
+      const gap = (rightEdgePosition.value - PADDING_LEFT - bottomCount * ST_WIDTH) / (bottomCount - 1)
+      
+      // 如果是偶数个站点，让下排站点与上排站点垂直对齐
+      // 下排站点从左到右按顺序排列（不反转）
+      return PADDING_LEFT + bottomIndex * (ST_WIDTH + gap)
     }
 
-    // 计算线段上三个箭头的位置（相对于线段起点）
-    function getSegmentArrows(segment) {
-      const arrows = []
-      // 将线段分成4等份，箭头在1/4, 2/4, 3/4位置
-      for (let i = 1; i <= 3; i++) {
-        arrows.push({
-          left: segment.width * i / 4 // 相对于线段起点的位置
-        })
-      }
-      return arrows
-    }
-
-    // 获取已通过段的压暗颜色
-    function getDimmedColor(color) {
-      return adjustBrightness(color, -0.4) // 降低40%亮度
-    }
-
+    // 屏幕适配
     function fitScreen() {
-      const ratio = Math.min(window.innerWidth / 1900, window.innerHeight / 600)
+      const ratio = Math.min(window.innerWidth / 1500, window.innerHeight / 400)
       scaleRatio.value = ratio
     }
 
+    // 处理广播消息
     function handleBroadcastMessage(event) {
       const data = event.data
       if (!data) return
       
-      // 兼容两种消息格式
       if (data.t === 'SYNC') {
-        // 新格式：{ t: 'SYNC', d: appData, r: rt }
         appData.value = data.d
         if (data.r) {
           rt.value = { ...data.r }
         }
       } else if (data.type === 'update_all') {
-        // 旧格式：{ type: 'update_all', data: appData, rt: rt }
         appData.value = data.data
         if (data.rt) {
           rt.value = { ...data.rt }
         }
       } else if (data.type === 'control') {
-        // 控制命令
         handleControl(data.cmd)
       }
     }
 
+    // 处理控制命令
     function handleControl(cmd) {
       if (!appData.value || stations.value.length === 0) return
       
@@ -362,27 +316,13 @@ export default {
       }
     }
 
-    // 键盘事件规范化函数
-    function normalizeKeyNameGlobal(name) {
-      if (!name) return name
-      const s = String(name)
-      if (s === 'NumpadEnter') return 'Enter'
-      if (s === ' ' || s.toLowerCase() === 'spacebar') return 'Space'
-      if (/^space$/i.test(s)) return 'Space'
-      if (/^[a-zA-Z]$/.test(s)) return 'Key' + s.toUpperCase()
-      return s
-    }
-
     // 键盘事件处理
     function handleKeyDown(e) {
       const targetTag = e.target && e.target.tagName
-      // 忽略输入框中的按键
       if (targetTag && ['INPUT', 'TEXTAREA', 'SELECT'].includes(targetTag)) return
       
-      // 阻止Space和Enter的默认行为
       if (e.code === 'Space' || e.code === 'Enter') e.preventDefault()
       
-      // 忽略修饰键
       const ignore = new Set([
         'ShiftLeft', 'ShiftRight', 
         'ControlLeft', 'ControlRight', 
@@ -393,10 +333,9 @@ export default {
       if (ignore.has(e.code)) return
       
       try {
-        const normCode = normalizeKeyNameGlobal(e.code || e.key)
-        const normKey = normalizeKeyNameGlobal(e.key || e.code || null)
+        const normCode = e.code || e.key
+        const normKey = e.key || e.code || null
         
-        // 通过BroadcastChannel发送按键事件到控制端
         if (bc) {
           bc.postMessage({ t: 'CMD_KEY', code: e.code, key: e.key, normCode, normKey })
         }
@@ -404,43 +343,39 @@ export default {
           bcNew.postMessage({ t: 'CMD_KEY', code: e.code, key: e.key, normCode, normKey })
         }
       } catch (err) {
-        // 忽略异常
         console.warn('Keyboard event error', err)
       }
     }
 
     // ============ 生命周期 ============
     onMounted(() => {
-      // 获取平台信息
       if (window.electronAPI && window.electronAPI.platform) {
         platform.value = window.electronAPI.platform
       }
       
-      // 初始化 BroadcastChannel - 兼容两种channel名称
+      // 初始化 BroadcastChannel
       try {
         bc = new BroadcastChannel('metro_pids_channel')
         bc.onmessage = handleBroadcastMessage
-        // 请求初始数据（旧格式）
         bc.postMessage({ type: 'REQ' })
       } catch (e) {
         console.warn('BroadcastChannel (metro_pids_channel) not supported', e)
       }
       
-      // 同时监听新格式的channel
       try {
         bcNew = new BroadcastChannel('metro_pids_v3')
         bcNew.onmessage = handleBroadcastMessage
-        // 请求初始数据（新格式）
         bcNew.postMessage({ t: 'REQ' })
       } catch (e) {
         console.warn('BroadcastChannel (metro_pids_v3) not supported', e)
       }
       
-      // 窗口大小适配
       fitScreen()
-      window.addEventListener('resize', fitScreen)
-      
-      // 添加键盘事件监听
+      console.log('[Display-2] 屏幕适配完成，缩放比例:', scaleRatio.value)
+      window.addEventListener('resize', () => {
+        fitScreen()
+        console.log('[Display-2] 窗口大小变化，新尺寸:', window.innerWidth, 'x', window.innerHeight, '缩放比例:', scaleRatio.value)
+      })
       document.addEventListener('keydown', handleKeyDown)
     })
 
@@ -457,41 +392,34 @@ export default {
       document.removeEventListener('keydown', handleKeyDown)
     })
 
-    // 监听主题色变化，更新CSS变量
-    watch(themeColor, (newColor) => {
-      document.documentElement.style.setProperty('--theme', newColor)
-    }, { immediate: true })
-
     return {
       appData,
       rt,
       scaleRatio,
-      themeColor,
-      lineNumber,
+      platform,
+      isDarwin,
+      isLinux,
       stations,
-      destinationCn,
-      destinationEn,
+      lineNumber,
+      routeNumber,
+      routeDirection,
+      lineNameHTML,
       activeStationIdx,
-      nextStopCn,
-      nextStopEn,
-      isArriving,
-      nextStopLabel,
-      currentCarriage,
-      doorWillOpen,
-      doorTextCn,
-      doorTextEn,
-      railWidth,
-      progressWidth,
-      trackTranslateX,
-      railSegments,
-      getStationClass,
-      getSegmentBackground,
-      getSegmentArrows,
-      getDimmedColor,
       ST_WIDTH,
-      railHeight,
-      arrowSize,
-      arrowWidth
+      stationGap,
+      getStationPosition,
+      getTopStationPosition,
+      getBottomStationPosition,
+      allStationsWithRow,
+      getStationClass,
+      isCurrentStation,
+      rightEdgePosition,
+      semicircleRadius,
+      semicirclePath,
+      SCREEN_WIDTH,
+      PADDING,
+      PADDING_RIGHT,
+      PADDING_LEFT
     }
   },
   template: `
@@ -514,150 +442,113 @@ export default {
               font-weight: 600;
               color: #fff;
               white-space: nowrap;
-            ">Metro PIDS - Jinan Display</span>
+            ">Metro PIDS - Display 2</span>
           </div>
         </div>
-        <!-- Header -->
+        
+        <!-- Header: 深蓝色背景，显示路线信息和图例 -->
         <div class="header">
-          <div class="h-left">
-            <div class="logo-box"><i class="fas fa-subway"></i></div>
-            <div class="logo-txt">
-              <span class="lt-cn">济南地铁</span>
-              <span class="lt-en">JINAN METRO</span>
-            </div>
-            <div class="line-tag" :style="{ background: themeColor }">
-              <span class="ln-num">{{ lineNumber }}</span>
-              <div class="ln-lbl"><span>号线</span><span>Line</span></div>
-            </div>
+          <div class="header-left">
+            <span class="header-route" v-html="lineNameHTML"></span>
+            <span class="header-direction">{{ routeDirection }}</span>
           </div>
-
-          <div class="h-center">
-            <div class="info-col">
-              <span class="lbl">开往 Bound for</span>
-              <span class="val" :style="{ color: themeColor }">{{ destinationCn }}</span>
-              <span class="val-en" :style="{ color: themeColor }">{{ destinationEn }}</span>
+          
+          <div class="legend">
+            <div class="legend-item">
+              <div class="legend-dot passed"></div>
+              <span class="legend-text">已过站</span>
             </div>
-            <div class="info-col">
-              <span class="lbl">{{ nextStopLabel }}</span>
-              <span 
-                class="val" 
-                :class="{ blink: isArriving }"
-                :style="{ color: themeColor }"
-              >
-                {{ nextStopCn }}
-              </span>
-              <span 
-                class="val-en" 
-                :class="{ blink: isArriving }"
-                :style="{ color: themeColor }"
-              >
-                {{ nextStopEn }}
-              </span>
-            </div>
-            <div class="info-col">
-              <span class="lbl">您当前在 Current Carriage</span>
-              <span class="val black">{{ currentCarriage }}</span>
-            </div>
-          </div>
-
-          <div class="h-right">
-            <div class="door-box">
-              <div class="door-txt">
-                <div class="dt-cn">{{ doorTextCn }}</div>
-                <div class="dt-en">{{ doorTextEn }}</div>
-              </div>
-              <div class="door-icon" :class="{ 'door-open': doorWillOpen, 'door-close': !doorWillOpen }">
-                <i :class="doorWillOpen ? 'fas fa-check' : 'fas fa-times'"></i>
-              </div>
+            <div class="legend-item">
+              <div class="legend-dot future"></div>
+              <span class="legend-text">未过站</span>
             </div>
           </div>
         </div>
 
-        <!-- Map Area -->
-        <div class="map-area">
-          <div 
-            class="track-wrap" 
-            id="map-track"
-          >
-            <div class="rail-bg" :style="{ width: railWidth + 'px', left: trackTranslateX + 'px', height: railHeight + 'px', borderRadius: (railHeight / 2) + 'px' }"></div>
-            <!-- 分段线路条 -->
+        <!-- 线路区域 -->
+        <div class="route-map">
+          <!-- 上排站点 - 前半部分站点从左到右排列（覆盖整个屏幕宽度） -->
+          <div class="station-row row-top">
             <div 
-              v-for="segment in railSegments" 
-              :key="'segment-' + segment.index"
-              class="rail-segment"
-              :class="{ 'segment-passed': segment.isPassed, 'segment-current': segment.isCurrent }"
-              :style="{
-                left: (trackTranslateX + segment.left) + 'px',
-                width: segment.width + 'px',
-                height: railHeight + 'px',
-                borderRadius: (railHeight / 2) + 'px',
-                background: getSegmentBackground(segment)
-              }"
+              v-for="station in allStationsWithRow" 
+              :key="'top-' + station.index"
+              v-show="station.isTopRow"
+              class="station"
+              :class="{ 'passed': station.isPassed, 'future': !station.isPassed }"
+              :style="{ left: getTopStationPosition(station.index) + 'px' }"
             >
-              <!-- 线段上的三个箭头 -->
-              <div
-                v-for="(arrow, arrowIdx) in getSegmentArrows(segment)"
-                :key="'arrow-' + segment.index + '-' + arrowIdx"
-                class="segment-arrow"
-                :style="{
-                  left: arrow.left + 'px',
-                  marginLeft: (-arrowSize) + 'px',
-                  borderTopWidth: arrowSize + 'px',
-                  borderBottomWidth: arrowSize + 'px',
-                  borderLeftWidth: arrowWidth + 'px',
-                  borderLeftColor: segment.isPassed ? '#b0b0b0' : themeColor
-                }"
-              ></div>
+              <span class="station-name">{{ station.name }}</span>
+              <div class="station-dot" :class="{ 'passed': station.isPassed, 'future': !station.isPassed }"></div>
+              <div v-if="station.isCurrent" class="current-indicator"></div>
             </div>
-            <!-- Progress arrow -->
+          </div>
+
+          <!-- 轨道线条 - 半胶囊形状（半圆在右边边缘） -->
+          <div class="track-lines">
+            <!-- 上排路线：从左到右边边缘 -->
             <div 
-              class="rail-arrow" 
+              class="track-line-top" 
               :style="{ 
-                left: (trackTranslateX + progressWidth) + 'px',
-                marginLeft: (-arrowSize) + 'px',
-                borderTopWidth: arrowSize + 'px',
-                borderBottomWidth: arrowSize + 'px',
-                borderLeftWidth: arrowWidth + 'px',
-                borderLeftColor: themeColor
+                width: (rightEdgePosition - PADDING_LEFT) + 'px' 
               }"
             ></div>
-            <!-- Stations -->
-            <div id="nodes-container" class="nodes-container" :style="{ left: trackTranslateX + 'px', width: railWidth + 'px' }">
-              <div 
-                v-for="(station, index) in stations" 
-                :key="index"
-                class="st-node"
-                :class="getStationClass(index)"
-                :id="'st-' + index"
-                :style="{ width: ST_WIDTH + 'px' }"
-              >
-                <div class="st-txt">
-                  <div class="st-cn" :class="{ active: index === activeStationIdx }">
-                    {{ station.name }}
-                  </div>
-                  <div class="st-en" :class="{ active: index === activeStationIdx }">
-                    {{ station.en }}
-                  </div>
-                </div>
-                <div class="st-dot" :class="{ active: index === activeStationIdx }">
-                  {{ index + 1 }}
-                </div>
-                <div v-if="station.xfer && station.xfer.length" class="xfer-row">
-                  <div 
-                    v-for="(xfer, xIdx) in station.xfer" 
-                    :key="xIdx"
-                    class="x-badge"
-                    :style="{ background: xfer.color || '#999' }"
-                  >
-                    {{ xfer.line }}
-                  </div>
-                </div>
-              </div>
+            
+            <!-- 右边半圆连接（使用显示器1的环线实现方式） -->
+            <svg 
+              class="track-semicircle-svg"
+              :style="{ 
+                position: 'absolute',
+                left: '0',
+                top: '0',
+                width: '100%',
+                height: '100%',
+                overflow: 'visible',
+                zIndex: '1'
+              }"
+            >
+              <!-- 使用显示器1的路径绘制方式 -->
+              <path 
+                :d="semicirclePath"
+                stroke="#a5f3bc"
+                stroke-width="4"
+                fill="none"
+                stroke-linecap="round"
+              />
+            </svg>
+            
+            <!-- 下排路线：从右边边缘向左延伸 -->
+            <div 
+              class="track-line-bottom" 
+              :style="{ 
+                left: PADDING_LEFT + 'px',
+                width: (rightEdgePosition - PADDING_LEFT) + 'px'
+              }"
+            >
+              <div class="arrow-left-bottom"></div>
             </div>
           </div>
+
+          <!-- 下排站点 - 后半部分站点从右到左排列（覆盖整个屏幕宽度） -->
+          <div class="station-row row-bottom">
+            <div 
+              v-for="station in allStationsWithRow" 
+              :key="'bottom-' + station.index"
+              v-show="!station.isTopRow"
+              class="station"
+              :class="{ 'passed': station.isPassed, 'future': !station.isPassed }"
+              :style="{ left: getBottomStationPosition(station.index) + 'px' }"
+            >
+              <div class="station-dot" :class="{ 'passed': station.isPassed, 'future': !station.isPassed }"></div>
+              <div v-if="station.isCurrent" class="current-indicator"></div>
+              <span class="station-name">{{ station.name }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer: 深蓝色底栏 -->
+        <div class="footer">
         </div>
       </div>
     </div>
   `
 }
-

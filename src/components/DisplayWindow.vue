@@ -61,6 +61,9 @@
             </div>
         </div>
       </div>
+      <div id="welcome-end-screen">
+        <div class="welcome-end-body"></div>
+      </div>
     </div>
   </div>
 </template>

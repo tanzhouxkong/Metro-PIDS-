@@ -12,11 +12,16 @@
     <!-- External Resources -->
     <link 
         rel="stylesheet" 
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" 
-        crossorigin="anonymous" 
-        referrerpolicy="no-referrer"
-        onerror="console.warn('Font Awesome failed to load, using fallback')"
+        href="assets/fontawesome/css/all.min.css" 
+        onerror="console.warn('Font Awesome failed to load, using fallback'); var fallback = document.createElement('link'); fallback.rel = 'stylesheet'; fallback.href = 'assets/local-icons.css'; document.head.appendChild(fallback);"
     >
+    <!-- Element Plus CSS -->
+    <link 
+        rel="stylesheet" 
+        href="https://unpkg.com/element-plus@latest/dist/index.css"
+    >
+    <!-- Element Plus JS (UMD) -->
+    <script src="https://unpkg.com/element-plus@latest/dist/index.full.js"></script>
     
     <!-- Global Styles -->
     <style>
@@ -29,30 +34,30 @@
             --dark: #2d3436;
             
             /* Light Theme */
-            --bg: #f0f2f5; /* 浅色背景 */
+            --bg: #efeff4; /* 浅色背景 - 基于 Secondary R239 G239 B244 */
             --card: transparent; /* 透明卡片背景，让 Mica 效果透出 */
-            --card-border: #f0f0f0;
-            --text: #2d3436;
-            --muted: #9aa0a6;
+            --card-border: #e5e5ea;
+            --text: #000000; /* 深色文本，与白色背景形成对比 */
+            --muted: #8e8e93; /* 次要文本颜色 */
             --rail-bg: rgba(255, 255, 255, 0.65);
-            --rail-border: rgba(0, 0, 0, 0.04);
+            --rail-border: rgba(0, 0, 0, 0.06);
             --panel-bg: transparent; /* 透明面板背景，让 Mica 效果透出 */
             
             /* Form Controls */
-            --input-bg: #ffffff; /* 表单输入控件的白色底色（浅色模式） */
+            --input-bg: #ffffff; /* 表单输入控件的白色底色（浅色模式） - Primary R255 G255 B255 */
             
             /* Button Colors */
             --btn-blue-bg: #1677ff;
             --btn-green-bg: var(--accent);
             --btn-org-bg: #ff9f5a;
             --btn-red-bg: #ff6b6b;
-            --btn-gray-bg: #d9dde0;
+            --btn-gray-bg: #e5e5ea; /* 基于 Secondary 的浅灰色 */
             --btn-gray-text: var(--text);
             --btn-text: #ffffff;
 
             /* Left rail buttons */
-            --rail-btn-bg: rgba(255, 255, 255, 0.38);  /* 侧边栏按钮未激活背景（浅色） */
-            --rail-btn-text: #2d3436;                  /* 侧边栏按钮未激活文字色（浅色） */
+            --rail-btn-bg: rgba(255, 255, 255, 0.5);  /* 侧边栏按钮未激活背景（浅色） */
+            --rail-btn-text: #000000;                  /* 侧边栏按钮未激活文字色（浅色） */
             
             /* Window Controls */
             --win-close-bg: linear-gradient(90deg, #ff6b6b, #ff4d4d);
@@ -60,10 +65,10 @@
             --titlebar-bg: rgba(255, 255, 255, 0.85);
             --titlebar-border: rgba(0, 0, 0, 0.08);
             
-            /* Blur Surfaces - Light (参考示例) */
-            --surface-primary: rgba(255, 255, 255, 0.92);    /* Primary: R255 G255 B255 */
-            --surface-secondary: rgba(239, 239, 244, 0.92);  /* Secondary: R239 G239 B244 */
-            --surface-tertiary: rgba(255, 255, 255, 0.92);   /* Tertiary: R255 G255 B255 */
+            /* Blur Surfaces - Light (基于图片中的颜色值) */
+            --surface-primary: rgba(255, 255, 255, 0.95);    /* Primary: R255 G255 B255 - 纯白色 */
+            --surface-secondary: rgba(239, 239, 244, 0.95);  /* Secondary: R239 G239 B244 - 浅灰色 */
+            --surface-tertiary: rgba(255, 255, 255, 0.95);   /* Tertiary: R255 G255 B255 - 纯白色 */
             
             /* Typography */
             --font: "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;

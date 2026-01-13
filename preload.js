@@ -21,6 +21,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return false;
     }
   },
+  switchDisplay: async (displayId, width, height) => {
+    try {
+      return await ipcRenderer.invoke('switch-display', displayId, Number(width) || 1900, Number(height) || 600);
+    } catch (e) {
+      console.error('switchDisplay failed:', e);
+      return false;
+    }
+  },
+  syncSettings: async (settings) => {
+    try {
+      return await ipcRenderer.invoke('settings/sync', settings);
+    } catch (e) {
+      console.error('syncSettings failed:', e);
+      return false;
+    }
+  },
   openLineManager: async (target) => {
     try {
       return await ipcRenderer.invoke('open-line-manager', target);
@@ -76,6 +92,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = (event, lineName, target) => callback(lineName, target);
     ipcRenderer.on('switch-line-request', handler);
     return () => ipcRenderer.removeListener('switch-line-request', handler);
+  },
+  // 监听API编辑显示端请求
+  onEditDisplayRequest: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const handler = (event, displayId, displayData) => callback(displayId, displayData);
+    ipcRenderer.on('api/edit-display-request', handler);
+    return () => ipcRenderer.removeListener('api/edit-display-request', handler);
+  },
+  // 发送编辑显示端响应
+  sendEditDisplayResult: (result) => {
+    try {
+      ipcRenderer.send('api/edit-display-result', result);
+    } catch (e) {
+      console.error('发送编辑显示端响应失败:', e);
+    }
   },
   openExternal: async (url) => {
     try { return await ipcRenderer.invoke('open-external', url); } catch (e) { return { ok: false, error: String(e) }; }

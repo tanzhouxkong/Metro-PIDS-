@@ -1,4 +1,5 @@
 import dialogService from '../utils/dialogService.js'
+import { showNotification } from '../utils/notificationService.js'
 
 /**
  * 清理文件名，移除不符合文件系统规则的字符
@@ -85,62 +86,218 @@ export function useFileIO(state) {
         const cleanLineName = cur.meta.lineName.replace(/<[^>]+>([^<]*)<\/>/g, '$1').trim();
         const expectedFileName = sanitizeFilename(cleanLineName) + '.json';
         
-        // 确定保存路径：如果有保存的文件路径，检查是否与当前线路名称匹配
+        // 调试信息
+        console.log('[saveCurrentLine] 开始保存:', {
+            lineName: cleanLineName,
+            currentFilePath: state.currentFilePath,
+            currentFolderId: state.currentFolderId,
+            folders: state.folders
+        });
+        
+        // 确定保存路径：优先使用 currentFilePath（如果它是完整路径）
         let filePath;
+        
+        // 获取当前文件夹路径（用于构建完整保存路径，作为后备方案）
+        let currentFolderPath = null;
+        if (state.currentFolderId && state.folders && Array.isArray(state.folders)) {
+            const currentFolder = state.folders.find(f => f.id === state.currentFolderId);
+            if (currentFolder && currentFolder.path) {
+                currentFolderPath = currentFolder.path;
+            }
+        }
+        
+        console.log('[saveCurrentLine] 文件夹信息:', {
+            currentFolderPath,
+            currentFolderId: state.currentFolderId
+        });
+        
         if (state.currentFilePath) {
-            // 提取当前文件路径的文件名（不包含路径）
-            // 使用字符串操作，兼容浏览器环境
+            // 检查 currentFilePath 是否是完整路径（包含 / 或 \）
             const lastSlash = Math.max(state.currentFilePath.lastIndexOf('/'), state.currentFilePath.lastIndexOf('\\'));
-            const currentFileName = lastSlash >= 0 ? state.currentFilePath.substring(lastSlash + 1) : state.currentFilePath;
+            const isFullPath = lastSlash >= 0;
             
-            // 如果文件名与当前线路名称匹配，使用原路径；否则生成新路径
-            if (currentFileName === expectedFileName || currentFileName === sanitizeFilename(cur.meta.lineName) + '.json') {
-                filePath = state.currentFilePath;
-            } else {
-                // 文件名不匹配，使用线路名称生成新路径（保持在同一文件夹）
-                const dir = lastSlash >= 0 ? state.currentFilePath.substring(0, lastSlash + 1) : '';
+            // 检查是否是绝对路径
+            const isAbsolute = state.currentFilePath.match(/^[A-Za-z]:[\\/]/) || state.currentFilePath.startsWith('/') || state.currentFilePath.startsWith('\\\\');
+            
+            console.log('[saveCurrentLine] currentFilePath 分析:', {
+                currentFilePath: state.currentFilePath,
+                isFullPath,
+                isAbsolute,
+                lastSlash
+            });
+            
+            if (isFullPath && isAbsolute) {
+                // currentFilePath 是绝对路径，直接使用（保持在同一文件夹）
+                // 即使文件名可能不匹配，也使用原路径的文件夹
+                const dir = state.currentFilePath.substring(0, lastSlash + 1);
                 filePath = dir + expectedFileName;
+                console.log('[saveCurrentLine] 使用绝对路径，构建 filePath:', filePath);
+            } else if (isFullPath && !isAbsolute) {
+                // currentFilePath 是相对路径（包含路径分隔符但不是绝对路径）
+                // 这种情况不应该发生，但为了安全，使用当前文件夹路径
+                if (currentFolderPath) {
+                    const separator = currentFolderPath.includes('\\') ? '\\' : '/';
+                    const normalizedPath = currentFolderPath.endsWith(separator) ? currentFolderPath : currentFolderPath + separator;
+                    filePath = normalizedPath + expectedFileName;
+                    console.log('[saveCurrentLine] 相对路径，使用当前文件夹，构建 filePath:', filePath);
+                } else {
+                    filePath = expectedFileName;
+                    console.log('[saveCurrentLine] 相对路径但无当前文件夹，使用文件名:', filePath);
+                }
+            } else {
+                // currentFilePath 只有文件名，需要加上文件夹路径
+                if (currentFolderPath) {
+                    const separator = currentFolderPath.includes('\\') ? '\\' : '/';
+                    const normalizedPath = currentFolderPath.endsWith(separator) ? currentFolderPath : currentFolderPath + separator;
+                    filePath = normalizedPath + expectedFileName;
+                    console.log('[saveCurrentLine] 只有文件名，使用当前文件夹，构建 filePath:', filePath);
+                } else {
+                    // 没有当前文件夹路径，使用文件名（会保存到默认文件夹）
+                    filePath = expectedFileName;
+                    console.log('[saveCurrentLine] 只有文件名且无当前文件夹，使用文件名:', filePath);
+                }
             }
         } else {
-            // 否则使用线路名称生成新路径
-            filePath = expectedFileName;
+            // 如果没有 currentFilePath，使用当前文件夹路径
+            if (currentFolderPath) {
+                const separator = currentFolderPath.includes('\\') ? '\\' : '/';
+                const normalizedPath = currentFolderPath.endsWith(separator) ? currentFolderPath : currentFolderPath + separator;
+                filePath = normalizedPath + expectedFileName;
+                console.log('[saveCurrentLine] 无 currentFilePath，使用当前文件夹，构建 filePath:', filePath);
+            } else {
+                // 如果找不到当前文件夹路径，使用线路名称生成新路径（会保存到默认文件夹）
+                filePath = expectedFileName;
+                console.log('[saveCurrentLine] 无 currentFilePath 且无当前文件夹，使用文件名:', filePath);
+            }
         }
         
         if (window.electronAPI && window.electronAPI.lines && typeof window.electronAPI.lines.save === 'function') {
             try {
                 const normalized = normalizeLine(JSON.parse(JSON.stringify(cur)));
-                const res = await window.electronAPI.lines.save(filePath, normalized);
+                
+                // 处理文件路径：如果 filePath 是完整路径，需要分离文件夹路径和文件名
+                let saveFileName = filePath;
+                let saveDir = null;
+                
+                const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
+                if (lastSlash >= 0) {
+                    // filePath 包含路径分隔符，可能是完整路径
+                    // 检查是否是绝对路径（Windows: C:\ 或 \\，Unix: /）
+                    const isAbsolute = filePath.match(/^[A-Za-z]:[\\/]/) || filePath.startsWith('/') || filePath.startsWith('\\\\');
+                    
+                    console.log('[saveCurrentLine] 路径分离分析:', {
+                        filePath,
+                        lastSlash,
+                        isAbsolute
+                    });
+                    
+                    if (isAbsolute) {
+                        // 是绝对路径，需要分离文件夹路径和文件名
+                        saveDir = filePath.substring(0, lastSlash);
+                        saveFileName = filePath.substring(lastSlash + 1);
+                        console.log('[saveCurrentLine] 绝对路径分离结果:', {
+                            saveDir,
+                            saveFileName
+                        });
+                    } else {
+                        // 是相对路径，直接使用 filePath 作为 filename
+                        saveFileName = filePath;
+                        saveDir = null;
+                        console.log('[saveCurrentLine] 相对路径，直接使用:', {
+                            saveFileName,
+                            saveDir
+                        });
+                    }
+                } else {
+                    console.log('[saveCurrentLine] 无路径分隔符，直接使用文件名:', saveFileName);
+                }
+                
+                console.log('[saveCurrentLine] 调用保存接口，参数:', {
+                    saveFileName,
+                    saveDir,
+                    lineName: cleanLineName
+                });
+                
+                // 调用保存接口：如果 saveDir 存在，传文件夹路径；否则传 null（使用当前文件夹）
+                const res = await window.electronAPI.lines.save(saveFileName, normalized, saveDir);
+                
+                console.log('[saveCurrentLine] 保存结果:', res);
                 if (res && res.ok) {
-                    // 更新当前文件路径
-                    state.currentFilePath = filePath;
+                    // 更新当前文件路径为实际保存的路径
+                    state.currentFilePath = res.path || filePath;
                     // 清理线路名称（移除HTML标签）用于显示
                     const cleanLineName = cur.meta.lineName.replace(/<[^>]+>([^<]*)<\/>/g, '$1').trim();
-                    await showMsg(`线路 "${cleanLineName}" 已保存\n${res.path}`);
+                    // 使用 Electron / 系统通知，在右侧悬浮显示保存成功
+                    showNotification(
+                        '保存成功',
+                        `线路 "${cleanLineName}" 已保存\n${res.path || filePath}`
+                    );
                 } else {
-                    await showMsg('保存失败: ' + (res && res.error));
+                    await showMsg('保存失败: ' + (res && res.error), '保存失败');
                 }
-            } catch (e) { await showMsg('保存失败: ' + e.message); }
+            } catch (e) { 
+                await showMsg('保存失败: ' + e.message, '保存失败');
+            }
             return;
         }
-        await showMsg('无法保存：未检测到宿主文件保存接口。请先使用"打开文件夹"选择一个线路文件夹，再保存。');
+        await showMsg('无法保存：未检测到宿主文件保存接口。请先使用"打开文件夹"选择一个线路文件夹，再保存。', '保存失败');
     }
 
     async function openLinesFolder() {
-        if (window.electronAPI && window.electronAPI.lines && typeof window.electronAPI.lines.openFolder === 'function') {
-            const res = await window.electronAPI.lines.openFolder();
-            if (!res || !res.ok) await showMsg('打开失败: ' + (res && res.error));
-        } else {
+        if (!(window.electronAPI && window.electronAPI.lines)) {
             await showMsg('仅 Electron 环境支持打开保存目录');
+            return;
+        }
+        
+        // 优先使用当前线路的真实位置
+        let folderPath = null;
+        
+        if (state.currentFilePath) {
+            // 从 currentFilePath 提取文件夹路径
+            const lastSlash = Math.max(state.currentFilePath.lastIndexOf('/'), state.currentFilePath.lastIndexOf('\\'));
+            if (lastSlash >= 0) {
+                // 检查是否是绝对路径
+                const isAbsolute = state.currentFilePath.match(/^[A-Za-z]:[\\/]/) || state.currentFilePath.startsWith('/') || state.currentFilePath.startsWith('\\\\');
+                if (isAbsolute) {
+                    folderPath = state.currentFilePath.substring(0, lastSlash);
+                }
+            }
+        }
+        
+        // 如果无法从 currentFilePath 获取，使用当前文件夹路径
+        if (!folderPath && state.currentFolderId && state.folders && Array.isArray(state.folders)) {
+            const currentFolder = state.folders.find(f => f.id === state.currentFolderId);
+            if (currentFolder && currentFolder.path) {
+                folderPath = currentFolder.path;
+            }
+        }
+        
+        // 如果有文件夹路径，使用它；否则使用默认行为
+        if (folderPath && window.electronAPI.lines.folders && window.electronAPI.lines.folders.open) {
+            const res = await window.electronAPI.lines.folders.open(folderPath);
+            if (!res || !res.ok) {
+                await showMsg('打开失败: ' + (res && res.error || '未知错误'));
+            }
+        } else if (window.electronAPI.lines.openFolder) {
+            // 后备方案：使用默认文件夹
+            const res = await window.electronAPI.lines.openFolder();
+            if (!res || !res.ok) {
+                await showMsg('打开失败: ' + (res && res.error || '未知错误'));
+            }
+        } else {
+            await showMsg('无法打开文件夹：未找到可用的文件夹打开接口');
         }
     }
 
-    async function refreshLinesFromFolder(silent = false) {
+    // 可选 dir 参数：指定从哪一个物理文件夹刷新线路
+    // 不传时使用当前“活动文件夹”（与之前行为保持一致）
+    async function refreshLinesFromFolder(silent = false, dir = null) {
         if (!(window.electronAPI && window.electronAPI.lines && typeof window.electronAPI.lines.list === 'function')) {
             if (!silent) await showMsg('仅 Electron 环境支持从线路文件夹刷新');
             return;
         }
         try {
-            const items = await window.electronAPI.lines.list();
+            const items = await window.electronAPI.lines.list(dir || undefined);
             if (!Array.isArray(items) || items.length === 0) {
                 // 如果是切换文件夹后的静默刷新，不显示提示
                 if (!silent) await showMsg('未发现已保存的线路文件');
@@ -152,17 +309,42 @@ export function useFileIO(state) {
             }
             const detected = [];
             const filePathMap = new Map(); // 用于映射线路名称到文件路径
+            // 确定文件夹路径：优先使用传入的 dir，否则使用当前文件夹路径
+            let folderPath = dir;
+            if (!folderPath && state.currentFolderId && state.folders && Array.isArray(state.folders)) {
+                const currentFolder = state.folders.find(f => f.id === state.currentFolderId);
+                if (currentFolder && currentFolder.path) {
+                    folderPath = currentFolder.path;
+                }
+            }
+            // 构建完整路径的辅助函数
+            const buildFullPath = (fileName) => {
+                if (!fileName) return fileName;
+                // 如果已经是完整路径（包含 / 或 \），直接返回
+                if (fileName.includes('/') || fileName.includes('\\')) {
+                    return fileName;
+                }
+                // 如果有文件夹路径，构建完整路径
+                if (folderPath) {
+                    const separator = folderPath.includes('\\') ? '\\' : '/';
+                    const normalizedPath = folderPath.endsWith(separator) ? folderPath : folderPath + separator;
+                    return normalizedPath + fileName;
+                }
+                // 否则返回文件名（会在保存时使用当前文件夹路径）
+                return fileName;
+            };
             for (const it of items) {
                 try {
-                    const res = await window.electronAPI.lines.read(it.name);
+                    const res = await window.electronAPI.lines.read(it.name, dir || undefined);
                     if (res && res.ok && res.content) {
                         const d = res.content;
                         if (d && d.meta && Array.isArray(d.stations)) {
                             const normalized = normalizeLine(d);
                             detected.push(normalized);
-                            // 保存线路名称到文件路径的映射
+                            // 保存线路名称到文件路径的映射（存储完整路径）
                             if (normalized.meta && normalized.meta.lineName) {
-                                filePathMap.set(normalized.meta.lineName, it.name);
+                                const fullPath = buildFullPath(it.name);
+                                filePathMap.set(normalized.meta.lineName, fullPath);
                             }
                         }
                     }
@@ -213,7 +395,22 @@ export function useFileIO(state) {
                 const filePath = state.lineNameToFilePath[state.appData.meta.lineName];
                 if (filePath) {
                     state.currentFilePath = filePath;
+                    console.log('[refreshLinesFromFolder] 设置 currentFilePath:', {
+                        lineName: state.appData.meta.lineName,
+                        filePath: state.currentFilePath,
+                        folderPath: folderPath,
+                        dir: dir
+                    });
+                } else {
+                    // 如果没有找到路径，清空 currentFilePath，保存时会使用当前文件夹路径
+                    state.currentFilePath = null;
+                    console.log('[refreshLinesFromFolder] 未找到文件路径，清空 currentFilePath:', {
+                        lineName: state.appData.meta.lineName
+                    });
                 }
+            } else {
+                state.currentFilePath = null;
+                console.log('[refreshLinesFromFolder] 无 appData 或 lineName，清空 currentFilePath');
             }
             
             // 自动检测并应用短交路逻辑（如果首末站是暂缓车站）
@@ -551,6 +748,191 @@ export function useFileIO(state) {
         }
     }
 
+    // 让用户选择文件夹（用于保存新线路）
+    async function selectFolderForSave() {
+        if (!(window.electronAPI && window.electronAPI.lines && window.electronAPI.lines.folders)) {
+            // 非 Electron 环境，返回默认文件夹
+            return { id: 'default', path: null };
+        }
+        
+        try {
+            const res = await window.electronAPI.lines.folders.list();
+            if (!res || !res.ok || !Array.isArray(res.folders) || res.folders.length === 0) {
+                return { id: 'default', path: null };
+            }
+            
+            // 过滤掉"默认"文件夹
+            const folders = res.folders.filter(f => f.id !== 'default' && f.name !== '默认');
+            
+            // 如果没有其他文件夹，让用户创建新文件夹
+            if (folders.length === 0) {
+                // 显示创建新文件夹的对话框
+                const dialogService = (await import('../utils/dialogService.js')).default;
+                const folderName = await dialogService.prompt('当前没有可用的文件夹，请创建一个新文件夹用于保存贯通线路：', '新建文件夹', '创建文件夹');
+                
+                if (!folderName || !folderName.trim()) {
+                    // 用户取消，返回 null（取消创建贯通线路）
+                    return null;
+                }
+                
+                // 创建新文件夹
+                try {
+                    const addRes = await window.electronAPI.lines.folders.add(folderName.trim());
+                    if (addRes && addRes.ok) {
+                        // 刷新文件夹列表
+                        await loadFolders();
+
+                        // 返回新创建的文件夹（使用 folderId 作为 id）
+                        return { id: addRes.folderId, path: addRes.path };
+                    } else {
+                        if (addRes && addRes.error === 'cancelled') {
+                            return null;
+                        }
+                        await showMsg('创建文件夹失败: ' + (addRes && addRes.error || '未知错误'), '错误');
+                        return null;
+                    }
+                } catch (e) {
+                    await showMsg('创建文件夹失败: ' + (e.message || e), '错误');
+                    return null;
+                }
+            }
+            
+            // 如果只有一个文件夹，直接返回
+            if (folders.length === 1) {
+                return { id: folders[0].id, path: folders[0].path };
+            }
+            
+            // 多个文件夹，显示选择对话框（类似显示端选择器）
+            return new Promise((resolve) => {
+                // 创建对话框
+                const dialog = document.createElement('div');
+                dialog.style.cssText = 'position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:10000; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px);';
+                
+                const dialogContent = document.createElement('div');
+                dialogContent.style.cssText = 'background:var(--card, #fff); border-radius:12px; width:90%; max-width:500px; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 8px 32px rgba(0,0,0,0.3); overflow:hidden;';
+                
+                // 标题栏
+                const header = document.createElement('div');
+                header.style.cssText = 'padding:20px; border-bottom:1px solid var(--divider, #e0e0e0); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;';
+                header.innerHTML = `
+                    <h3 style="margin:0; font-size:18px; font-weight:bold; color:var(--text, #333);">选择保存位置</h3>
+                    <button id="closeBtn" style="background:none; border:none; color:var(--muted, #666); cursor:pointer; font-size:24px; padding:0; width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; transition:background 0.2s;">&times;</button>
+                `;
+                
+                // 文件夹列表
+                const folderList = document.createElement('div');
+                folderList.style.cssText = 'flex:1; overflow-y:auto; padding:12px; max-height:400px;';
+                
+                let selectedFolderId = null;
+                
+                folders.forEach((folder) => {
+                    const folderCard = document.createElement('div');
+                    folderCard.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:12px; margin-bottom:8px; background:var(--card, #fff); border-radius:6px; border:2px solid var(--divider, #e0e0e0); cursor:pointer; transition:all 0.2s; user-select:none;';
+                    
+                    folderCard.innerHTML = `
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-size:14px; font-weight:bold; color:var(--text, #333); margin-bottom:4px;">
+                                <i class="fas fa-folder" style="margin-right:8px; color:var(--accent, #12b7f5);"></i>
+                                ${folder.name}
+                            </div>
+                            <div style="font-size:12px; color:var(--muted, #666); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                ${folder.path || ''}
+                            </div>
+                        </div>
+                    `;
+                    
+                    // 点击选择
+                    folderCard.addEventListener('click', () => {
+                        selectedFolderId = folder.id;
+                        // 高亮选中的卡片
+                        folders.forEach((f) => {
+                            const card = folderList.querySelector(`[data-folder-id="${f.id}"]`);
+                            if (card) {
+                                if (f.id === folder.id) {
+                                    card.style.borderColor = '#FF9F43';
+                                    card.style.background = 'rgba(255,159,67,0.1)';
+                                    card.style.boxShadow = '0 2px 8px rgba(255,159,67,0.3)';
+                                } else {
+                                    card.style.borderColor = 'var(--divider, #e0e0e0)';
+                                    card.style.background = 'var(--card, #fff)';
+                                    card.style.boxShadow = 'none';
+                                }
+                            }
+                        });
+                    });
+                    
+                    // 悬停效果
+                    folderCard.addEventListener('mouseenter', () => {
+                        if (selectedFolderId !== folder.id) {
+                            folderCard.style.background = 'var(--bg, #f5f5f5)';
+                        }
+                    });
+                    folderCard.addEventListener('mouseleave', () => {
+                        if (selectedFolderId !== folder.id) {
+                            folderCard.style.background = 'var(--card, #fff)';
+                        }
+                    });
+                    
+                    folderCard.setAttribute('data-folder-id', folder.id);
+                    folderList.appendChild(folderCard);
+                });
+                
+                // 按钮栏
+                const buttonBar = document.createElement('div');
+                buttonBar.style.cssText = 'padding:16px 20px; border-top:1px solid var(--divider, #e0e0e0); display:flex; justify-content:flex-end; gap:12px; flex-shrink:0;';
+                buttonBar.innerHTML = `
+                    <button id="cancelBtn" style="padding:8px 20px; background:#fff; color:#333; border:1px solid #d9d9d9; border-radius:4px; font-size:14px; cursor:pointer; transition:all 0.2s; min-width:60px;">取消</button>
+                    <button id="confirmBtn" style="padding:8px 20px; background:#1677ff; color:#fff; border:none; border-radius:4px; font-size:14px; cursor:pointer; transition:all 0.2s; font-weight:500; min-width:60px;">确定</button>
+                `;
+                
+                // 组装对话框
+                dialogContent.appendChild(header);
+                dialogContent.appendChild(folderList);
+                dialogContent.appendChild(buttonBar);
+                dialog.appendChild(dialogContent);
+                document.body.appendChild(dialog);
+                
+                // 事件处理
+                const closeDialog = () => {
+                    document.body.removeChild(dialog);
+                };
+                
+                header.querySelector('#closeBtn').addEventListener('click', () => {
+                    closeDialog();
+                    resolve(null);
+                });
+                
+                buttonBar.querySelector('#cancelBtn').addEventListener('click', () => {
+                    closeDialog();
+                    resolve(null);
+                });
+                
+                buttonBar.querySelector('#confirmBtn').addEventListener('click', () => {
+                    if (selectedFolderId) {
+                        const selectedFolder = folders.find(f => f.id === selectedFolderId);
+                        closeDialog();
+                        resolve(selectedFolder ? { id: selectedFolder.id, path: selectedFolder.path } : null);
+                    } else {
+                        // 如果没有选择，提示用户
+                        alert('请先选择一个文件夹');
+                    }
+                });
+                
+                // 点击背景关闭
+                dialog.addEventListener('click', (e) => {
+                    if (e.target === dialog) {
+                        closeDialog();
+                        resolve(null);
+                    }
+                });
+            });
+        } catch (e) {
+            console.error('选择文件夹失败:', e);
+            await showMsg('选择文件夹失败，将使用默认文件夹: ' + (e.message || e), '错误');
+            return null;
+        }
+    }
+
     return {
         saveCurrentLine,
         openLinesFolder,
@@ -561,7 +943,8 @@ export function useFileIO(state) {
         addFolder,
         removeFolder,
         renameFolder,
-        initDefaultLines
+        initDefaultLines,
+        selectFolderForSave
     }
 }
 
