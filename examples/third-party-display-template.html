@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metro-PIDS 第三方显示器模板</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #090d12;
+            color: #e2e8f0;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .display-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .line-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .line-name {
+            font-size: 32px;
+            font-weight: bold;
+            color: #60a5fa;
+        }
+
+        .line-number {
+            font-size: 18px;
+            color: #94a3b8;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(16, 185, 129, 0.2);
+            border-radius: 20px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .status-dot.offline {
+            background: #64748b;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            overflow: hidden;
+        }
+
+        .panel {
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 10px;
+            padding: 25px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            padding-bottom: 10px;
+        }
+
+        .current-station {
+            font-size: 48px;
+            font-weight: bold;
+            color: #60a5fa;
+            text-align: center;
+            padding: 20px;
+            background: rgba(96, 165, 250, 0.1);
+            border-radius: 8px;
+        }
+
+        .station-info {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 6px;
+        }
+
+        .info-label {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .info-value {
+            color: #e2e8f0;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .stations-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-right: 10px;
+        }
+
+        .station-item {
+            padding: 12px 15px;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 6px;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .station-item.current {
+            background: rgba(96, 165, 250, 0.2);
+            border-left-color: #60a5fa;
+            font-weight: bold;
+        }
+
+        .station-item.passed {
+            opacity: 0.5;
+        }
+
+        .station-name {
+            font-size: 16px;
+            color: #e2e8f0;
+        }
+
+        .station-en {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        .debug-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            max-width: 400px;
+            font-size: 12px;
+            color: #94a3b8;
+            display: none;
+        }
+
+        .debug-panel.show {
+            display: block;
+        }
+
+        .debug-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #e2e8f0;
+        }
+
+        .debug-item {
+            margin: 4px 0;
+            word-break: break-all;
+        }
+
+        /* 滚动条样式 */
+        .stations-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .stations-list::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 3px;
+        }
+
+        .stations-list::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.3);
+            border-radius: 3px;
+        }
+
+        .stations-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.5);
+        }
+
+        /* 响应式布局 */
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="display-container">
+        <!-- 头部信息 -->
+        <div class="header">
+            <div class="line-info">
+                <div class="line-name" id="lineName">等待数据...</div>
+                <div class="line-number" id="lineNumber">线路号: --</div>
+            </div>
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">已连接</span>
+            </div>
+        </div>
+
+        <!-- 主要内容 -->
+        <div class="main-content">
+            <!-- 左侧：当前站点信息 -->
+            <div class="panel">
+                <div class="panel-title">当前站点</div>
+                <div class="current-station" id="currentStation">--</div>
+                <div class="station-info">
+                    <div class="info-item">
+                        <span class="info-label">站点索引</span>
+                        <span class="info-value" id="stationIndex">-- / --</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">方向</span>
+                        <span class="info-value" id="direction">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">车次</span>
+                        <span class="info-value" id="trainNumber">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">当前时间</span>
+                        <span class="info-value" id="currentTime">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：站点列表 -->
+            <div class="panel">
+                <div class="panel-title">站点列表</div>
+                <div class="stations-list" id="stationsList">
+                    <div style="text-align: center; color: #94a3b8; padding: 20px;">
+                        等待数据加载...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 调试面板（按 F12 显示/隐藏） -->
+        <div class="debug-panel" id="debugPanel">
+            <div class="debug-title">调试信息</div>
+            <div class="debug-item" id="debugInfo">等待消息...</div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 配置 ====================
+        const CONFIG = {
+            channelName: 'metro_pids_v3',  // BroadcastChannel 频道名称
+            snapshotKey: 'metro_pids_display_snapshot',  // localStorage 快照键名
+            enableDebug: false,  // 是否启用调试面板（按 F12 切换）
+        };
+
+        // ==================== 状态管理 ====================
+        let appData = null;
+        let rtState = { idx: 0, state: 0 };
+        let bc = null;
+        let isConnected = false;
+
+        // ==================== BroadcastChannel 初始化 ====================
+        function initBroadcastChannel() {
+            if (typeof BroadcastChannel !== 'undefined') {
+                try {
+                    bc = new BroadcastChannel(CONFIG.channelName);
+                    console.log('[Display] BroadcastChannel 已创建:', CONFIG.channelName);
+                    
+                    bc.addEventListener('message', (event) => {
+                        handleMessage(event.data);
+                    });
+                    
+                    // 显示端启动时，请求主程序同步数据
+                    bc.postMessage({ t: 'REQ' });
+                    updateConnectionStatus(true);
+                } catch (e) {
+                    console.warn('[Display] BroadcastChannel 创建失败:', e);
+                    updateConnectionStatus(false);
+                }
+            } else {
+                console.warn('[Display] 浏览器不支持 BroadcastChannel');
+                updateConnectionStatus(false);
+            }
+        }
+
+        // ==================== 回退方案：window.postMessage ====================
+        // 重要：window.postMessage 是必需的，因为主程序通过 executeJavaScript 发送消息时
+        // 会同时使用 BroadcastChannel 和 window.postMessage，确保 file:// 协议也能收到消息
+        if (typeof window !== 'undefined') {
+            window.addEventListener('message', (event) => {
+                // 处理所有包含 t 字段的消息（不检查 origin，因为主程序通过 executeJavaScript 发送）
+                if (event.data && event.data.t) {
+                    console.log('[Display] 通过 window.postMessage 收到消息:', event.data.t);
+                    handleMessage(event.data);
+                }
+            });
+        }
+
+        // ==================== 消息处理 ====================
+        function handleMessage(data) {
+            if (!data || !data.t) return;
+            
+            console.log('[Display] 收到消息:', data.t, data.d ? '有数据' : '无数据');
+            updateDebugInfo(`收到消息类型: ${data.t}`);
+            
+            switch (data.t) {
+                case 'SYNC':
+                    // 同步数据消息
+                    appData = data.d;
+                    rtState = data.r || rtState;
+                    
+                    console.log('[Display] 同步数据:', {
+                        hasAppData: !!appData,
+                        hasStations: !!(appData && appData.stations),
+                        stationsCount: appData && appData.stations ? appData.stations.length : 0,
+                        currentIdx: rtState?.idx ?? 0
+                    });
+                    
+                    // 保存快照到 localStorage
+                    saveSnapshot(data);
+                    
+                    // 更新显示
+                    updateDisplay();
+                    updateConnectionStatus(true);
+                    break;
+                    
+                case 'CMD_KEY':
+                    // 控制命令消息
+                    updateDebugInfo(`收到控制命令: ${data.code}`);
+                    handleControlCommand(data.code);
+                    break;
+                    
+                case 'REC_START':
+                    // 开始录制
+                    updateDebugInfo(`开始录制，比特率: ${data.bps}`);
+                    break;
+                    
+                case 'REC_STOP':
+                    // 停止录制
+                    updateDebugInfo('停止录制');
+                    break;
+                    
+                case 'REQ':
+                    // 请求数据（主程序发送，通常不需要处理）
+                    break;
+            }
+        }
+
+        // ==================== 控制命令处理 ====================
+        function handleControlCommand(keyCode) {
+            // 根据按键代码执行相应操作
+            switch (keyCode) {
+                case 'ArrowRight':
+                    console.log('[Display] 下一站');
+                    break;
+                case 'ArrowLeft':
+                    console.log('[Display] 上一站');
+                    break;
+                case 'Enter':
+                    console.log('[Display] 到达');
+                    break;
+                case 'Space':
+                    console.log('[Display] 发车');
+                    break;
+                default:
+                    console.log('[Display] 未知按键:', keyCode);
+            }
+        }
+
+        // ==================== 更新显示 ====================
+        function updateDisplay() {
+            if (!appData) {
+                console.warn('[Display] updateDisplay: appData 为空');
+                return;
+            }
+            
+            console.log('[Display] 更新显示，站点数量:', appData.stations ? appData.stations.length : 0);
+            
+            // 更新线路信息
+            const lineName = appData.meta?.lineName || appData.lineName || '未知线路';
+            const lineNumber = appData.meta?.lineNumber || appData.lineNumber || '--';
+            document.getElementById('lineName').textContent = lineName;
+            document.getElementById('lineNumber').textContent = `线路号: ${lineNumber}`;
+            
+            // 更新当前站点
+            const currentIdx = rtState?.idx ?? 0;
+            const stations = appData.stations || [];
+            const currentStation = stations[currentIdx];
+            
+            if (currentStation) {
+                document.getElementById('currentStation').textContent = currentStation.name || '--';
+                document.getElementById('stationIndex').textContent = `${currentIdx} / ${Math.max(0, stations.length - 1)}`;
+            } else {
+                document.getElementById('currentStation').textContent = '--';
+                document.getElementById('stationIndex').textContent = '-- / --';
+            }
+            
+            // 更新其他信息
+            document.getElementById('direction').textContent = appData.direction || appData.meta?.dirType || '--';
+            document.getElementById('trainNumber').textContent = appData.trainNumber || '--';
+            updateCurrentTime();
+            
+            // 更新站点列表
+            updateStationsList(stations, currentIdx);
+        }
+
+        // ==================== 更新站点列表 ====================
+        function updateStationsList(stations, currentIdx) {
+            const listElement = document.getElementById('stationsList');
+            
+            if (!stations || stations.length === 0) {
+                listElement.innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 20px;">暂无站点数据</div>';
+                return;
+            }
+            
+            listElement.innerHTML = stations.map((station, index) => {
+                const isCurrent = index === currentIdx;
+                const isPassed = index < currentIdx;
+                
+                return `
+                    <div class="station-item ${isCurrent ? 'current' : ''} ${isPassed ? 'passed' : ''}">
+                        <div class="station-name">${station.name || '未知站点'}</div>
+                        ${station.en ? `<div class="station-en">${station.en}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ==================== 更新当前时间 ====================
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('zh-CN', { 
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('currentTime').textContent = timeString;
+        }
+
+        // ==================== 更新连接状态 ====================
+        function updateConnectionStatus(connected) {
+            isConnected = connected;
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            if (connected) {
+                statusDot.classList.remove('offline');
+                statusText.textContent = '已连接';
+            } else {
+                statusDot.classList.add('offline');
+                statusText.textContent = '未连接';
+            }
+        }
+
+        // ==================== 保存快照 ====================
+        function saveSnapshot(data) {
+            if (typeof window === 'undefined' || !window.localStorage) return;
+            
+            try {
+                window.localStorage.setItem(CONFIG.snapshotKey, JSON.stringify(data));
+            } catch (e) {
+                console.warn('[Display] 保存快照失败:', e);
+            }
+        }
+
+        // ==================== 恢复快照 ====================
+        function restoreSnapshot() {
+            if (typeof window === 'undefined' || !window.localStorage) return false;
+            
+            const raw = window.localStorage.getItem(CONFIG.snapshotKey);
+            if (!raw) return false;
+            
+            try {
+                const data = JSON.parse(raw);
+                if (data && data.t === 'SYNC') {
+                    appData = data.d;
+                    rtState = data.r || rtState;
+                    updateDisplay();
+                    updateDebugInfo('已恢复数据快照');
+                    return true;
+                }
+            } catch (err) {
+                console.warn('[Display] 恢复快照失败:', err);
+            }
+            
+            return false;
+        }
+
+        // ==================== 调试面板 ====================
+        function updateDebugInfo(message) {
+            if (!CONFIG.enableDebug) return;
+            
+            const debugPanel = document.getElementById('debugPanel');
+            const debugInfo = document.getElementById('debugInfo');
+            
+            const timestamp = new Date().toLocaleTimeString();
+            debugInfo.textContent = `[${timestamp}] ${message}`;
+        }
+
+        // ==================== 调用 API 发送控制命令 ====================
+        const API_BASE = 'http://localhost:9001';
+
+        async function sendApiCommand(command, extra = {}) {
+            try {
+                const payload = Object.assign({ command }, extra);
+                console.log('[Display] 发送控制命令到 API:', payload);
+                const res = await fetch(`${API_BASE}/api/display/control`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                console.log('[Display] 控制命令响应:', data);
+            } catch (err) {
+                console.error('[Display] 控制命令发送失败:', err);
+            }
+        }
+
+        // ==================== 键盘快捷键 ====================
+        document.addEventListener('keydown', (e) => {
+            // F12 切换调试面板
+            if (e.key === 'F12') {
+                e.preventDefault();
+                CONFIG.enableDebug = !CONFIG.enableDebug;
+                const debugPanel = document.getElementById('debugPanel');
+                if (CONFIG.enableDebug) {
+                    debugPanel.classList.add('show');
+                } else {
+                    debugPanel.classList.remove('show');
+                }
+                return;
+            }
+
+            // 其他键映射到 API 控制命令（方案 B）
+            const code = e.code || e.key;
+
+            if (code === 'ArrowRight') {          // 下一站
+                e.preventDefault();
+                sendApiCommand('next');
+            } else if (code === 'ArrowLeft') {    // 上一站
+                e.preventDefault();
+                sendApiCommand('prev');
+            } else if (code === 'Enter') {        // 到达
+                e.preventDefault();
+                sendApiCommand('arrive');
+            } else if (code === 'Space') {        // 发车
+                e.preventDefault();
+                sendApiCommand('depart');
+            }
+        });
+
+        // ==================== 确保窗口可接收键盘事件 ====================
+        function ensureFocus() {
+            try {
+                if (document && document.body) {
+                    document.body.setAttribute('tabindex', '-1');
+                    document.body.focus();
+                }
+                // 再尝试聚焦窗口本身
+                if (typeof window !== 'undefined' && window.focus) {
+                    window.focus();
+                }
+                console.log('[Display] 已尝试聚焦窗口以接收键盘事件');
+            } catch (e) {
+                console.warn('[Display] 聚焦窗口失败:', e);
+            }
+        }
+
+        // ==================== 初始化 ====================
+        function init() {
+            console.log('[Display] 第三方显示器模板初始化');
+            
+            // 初始化 BroadcastChannel
+            initBroadcastChannel();
+            
+            // 尝试恢复快照
+            restoreSnapshot();
+            
+            // 启动时钟更新
+            setInterval(updateCurrentTime, 1000);
+            updateCurrentTime();
+
+            // 确保能接收键盘事件
+            ensureFocus();
+            // 用户点击任意位置时也再次聚焦，避免丢焦
+            document.addEventListener('click', ensureFocus, { once: true });
+            
+            // 如果 3 秒后仍未连接，显示警告
+            setTimeout(() => {
+                if (!isConnected) {
+                    console.warn('[Display] 警告：未收到主程序的数据同步');
+                    updateDebugInfo('警告：未收到主程序的数据同步');
+                }
+            }, 3000);
+        }
+
+        // ==================== 页面加载完成后初始化 ====================
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+        // ==================== 页面卸载时清理 ====================
+        window.addEventListener('beforeunload', () => {
+            if (bc) {
+                bc.close();
+            }
+        });
+    </script>
+</body>
+</html>

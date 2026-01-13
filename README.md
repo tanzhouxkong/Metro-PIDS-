@@ -118,15 +118,31 @@ npm run publish:gh
 npx electron-builder --publish=always --win
 ```
 
-**注意**：如果遇到 SSL 证书验证错误（`unable to verify the first certificate`），可能是企业网络环境的 SSL 拦截导致的。可以：
+**注意**：如果遇到 SSL 证书验证错误（`unable to verify the first certificate`），可能是企业网络环境的 SSL 拦截导致的。可以尝试以下解决方案：
 
-1. **手动上传**（推荐）：构建完成后，手动将 `dist/Metro-PIDS-Setup-{version}.exe` 上传到 GitHub Releases
+1. **使用系统 CA 证书**（推荐）：
+```powershell
+# 方法 1：使用 NODE_OPTIONS 环境变量
+$env:NODE_OPTIONS = "--use-system-ca"
+npx electron-builder --publish=always --win
 
-2. **临时禁用 SSL 验证**（仅用于测试，不安全）：
+# 方法 2：直接在命令中使用
+node --use-system-ca node_modules/.bin/electron-builder --publish=always --win
+```
+
+2. **手动上传**（最安全）：构建完成后，手动将 `dist/Metro-PIDS-Setup-{version}.exe` 上传到 GitHub Releases
+   - 先构建但不发布：`npx electron-builder --win`（不加 `--publish=always`）
+   - 然后手动上传到 GitHub Releases
+
+3. **临时禁用 SSL 验证**（仅用于测试，不安全，不推荐）：
 ```powershell
 $env:NODE_TLS_REJECT_UNAUTHORIZED = "0"
 npx electron-builder --publish=always --win
 ```
+
+4. **配置企业代理证书**（如果使用企业代理）：
+   - 将企业 CA 证书添加到系统信任的根证书存储
+   - 或设置 `NODE_EXTRA_CA_CERTS` 环境变量指向证书文件
 
 ## 开发指南
 
@@ -208,3 +224,59 @@ npm run rebuild-mica
 ## 许可证
 
 MIT
+
+## 第三方显示器（通过 API 控制）
+
+有两种用法：
+
+1. 浏览器同源方式（自动同步）  
+   直接在浏览器打开 `http://localhost:5173/examples/third-party-display-template.html`，模板会通过 BroadcastChannel 自动收同步数据并显示站点。
+
+2. 本地显示端 + API 方式（推荐给“第三方显示器”窗口）  
+   - 在显示端配置里选择 `examples/third-party-display-template.html` 作为“本地网页文件”。  
+   - 启动 Metro-PIDS（不要手动跑 `node scripts/display-api-server.js`），主进程会自动启动 API 服务器。  
+   - 通过 API 推送数据，第三方显示器即可显示站点，快捷键也会调用 API 控制线路。
+
+### 启动 API 服务器
+
+由 Metro-PIDS 主进程自动启动（端口默认 9001）。  
+检查：浏览器访问 `http://localhost:9001/api/display/info` 应该返回 ok: true。
+
+### 推送数据示例（PowerShell）
+
+```powershell
+$apiBase = "http://localhost:9001"; $body = @{
+  appData = @{
+    meta = @{
+      lineName = "测试线路"
+      lineNumber = "1"
+    }
+    stations = @(
+      @{ name = "站点1"; en = "Station 1" }
+      @{ name = "站点2"; en = "Station 2" }
+      @{ name = "站点3"; en = "Station 3" }
+    )
+  }
+  rtState = @{
+    idx = 0
+    state = 0
+  }
+} | ConvertTo-Json -Depth 10; Invoke-RestMethod -Uri "$apiBase/api/display/sync" -Method Post -Body $body -ContentType "application/json"
+```
+
+成功后返回 `{"ok":true,"message":"数据已同步到所有显示器"}`，第三方显示器会显示站点列表。
+
+### 快捷键（第三方模板内置，通过 API 调用）
+
+- `→` 下一站（command: `next`）
+- `←` 上一站（command: `prev`）
+- `Enter` 到达（command: `arrive`）
+- `Space` 发车（command: `depart`）
+- `F12` 切换调试面板
+
+> 如果第三方显示器窗口不能接收按键，点击页面一次或确保窗口获得焦点即可或者将焦点放到主程序上也可以使用。
+
+### 相关示例文件路径
+
+- 第三方显示器模板：`examples/third-party-display-template.html`
+- Display SDK 示例（UMD 手动加载示例）：`examples/display-sdk-demo.html`
