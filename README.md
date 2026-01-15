@@ -51,6 +51,26 @@
 - 文件管理：可从文件夹加载线路 JSON、刷新并保存当前线路到打开的文件夹（需要主机 API 支持）。
 - **站点计算 API**：提供统一的站点计算逻辑 API，支持短交路、暂缓停靠、快车、直达车等复杂运营模式，方便第三方显示器集成。
 
+## 项目截图
+
+![截图1](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/5927dbe6eb3380ee4f61f83f5b6d994b.png)
+
+![截图2](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/63a4d5e4b05ec6912bcc4e98e9d1de10.png)
+
+![截图3](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/6f74a3b7be2c2ececb5856631ec8f2d8.png)
+
+![截图4](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/80b6c62fab4707431c4903e3baba8e36.png)
+
+![截图5](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/bcf833f16cfeb516c2e8a4f262fedf02.png)
+
+![截图6](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202026-01-16%20010856.png)
+
+![截图7](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202026-01-16%20010903.png)
+
+![截图8](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202026-01-16%20010909.png)
+
+![截图9](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202026-01-16%20010929.png)
+
 ## 文件结构
 
 ```
@@ -94,25 +114,7 @@ npm run dev
 npm run preview
 ```
 
-### 项目截图
 
-![截图1](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/5927dbe6eb3380ee4f61f83f5b6d994b.png)
-
-![截图2](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/63a4d5e4b05ec6912bcc4e98e9d1de10.png)
-
-![截图3](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/6f74a3b7be2c2ececb5856631ec8f2d8.png)
-
-![截图4](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/80b6c62fab4707431c4903e3baba8e36.png)
-
-![截图5](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/bcf833f16cfeb516c2e8a4f262fedf02.png)
-
-![截图6](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202026-01-16%20010856.png)
-
-![截图7](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202026-01-16%20010903.png)
-
-![截图8](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202026-01-16%20010909.png)
-
-![截图9](https://raw.githubusercontent.com/tanzhouxkong/Metro-PIDS-/main/png/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202026-01-16%20010929.png)
 
 ### 生产构建
 
@@ -342,3 +344,4 @@ const stationInfo = calculateDisplayStationInfo(appData, rtState, {
 - 站点计算 API 详细文档
 - JavaScript 和 Python 使用示例
 - 第三方显示器集成指南
+
