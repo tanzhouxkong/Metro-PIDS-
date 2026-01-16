@@ -52,7 +52,7 @@ export function useSettings() {
                                 width: oldDisplay.width || 1900,
                                 height: oldDisplay.height || 600,
                                 enabled: true,
-                                isSystem: false,
+                                isSystem: true, // 系统显示器，不允许删除
                                 description: '主要显示端，用于主要信息展示'
                             },
                             'display-2': {
@@ -63,7 +63,7 @@ export function useSettings() {
                                 width: 1500,
                                 height: 400,
                                 enabled: true,
-                                isSystem: false,
+                                isSystem: true, // 系统显示器，不允许删除
                                 description: '辅助显示端，用于补充信息展示'
                             }
                         }
@@ -80,7 +80,7 @@ export function useSettings() {
                         width: 1900,
                         height: 600,
                         enabled: true,
-                        isSystem: false,
+                        isSystem: true, // 系统显示器，不允许删除
                         description: '主要显示端，用于主要信息展示'
                     };
                 }
@@ -94,7 +94,7 @@ export function useSettings() {
                         width: 1500,
                         height: 400,
                         enabled: true,
-                        isSystem: false,
+                        isSystem: true, // 系统显示器，不允许删除
                         description: '辅助显示端，用于补充信息展示'
                     };
                 }
@@ -105,6 +105,15 @@ export function useSettings() {
                 }
                 if (!settings.display.displays) {
                     settings.display.displays = { ...DEFAULT_SETTINGS.display.displays };
+                }
+                
+                // 确保系统显示器的 isSystem 属性正确设置为 true
+                // display-1 和 display-2 是系统显示器，不允许删除
+                if (settings.display.displays['display-1']) {
+                    settings.display.displays['display-1'].isSystem = true;
+                }
+                if (settings.display.displays['display-2']) {
+                    settings.display.displays['display-2'].isSystem = true;
                 }
                 // 确保 display2Mode 存在
                 if (settings.display.display2Mode === undefined) {

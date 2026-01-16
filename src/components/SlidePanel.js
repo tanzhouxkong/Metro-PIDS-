@@ -1598,6 +1598,14 @@ export default {
         });
     }
 
+    // 监听 autoLocked 变化，如果外部设置为 false，则停止自动播放
+    watch(() => uiState.autoLocked, (newVal) => {
+        if (!newVal && isPlaying.value) {
+            // 如果 autoLocked 被设置为 false 且正在播放，则停止
+            try { stop(); } catch (e) {}
+        }
+    });
+
     // 录制前先检查是否已连接显示端
     async function startRecordingWithCheck(bps = 800000, timeoutMs = 1500) {
         try {
@@ -2703,16 +2711,6 @@ export default {
         };
     },
   template: `
-    <!-- Global auto-play lock overlay (covers entire app) -->
-    <div v-if="uiState.autoLocked" style="position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; flex-direction:column; color:var(--card-foreground, #fff); padding:20px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); transition: backdrop-filter .24s ease, background .24s ease;">
-        <div style="font-size:20px; font-weight:800; margin-bottom:10px;">自动播放进行中 — 整个应用已锁定</div>
-        <div style="font-size:14px; opacity:0.95; margin-bottom:18px; text-align:center; max-width:680px;">为避免干扰演示，请勿操作控制面板或其他窗口内容。若需停止自动播放，请使用下面的按钮。</div>
-        <div style="display:flex; gap:10px;">
-            <button class="btn" v-if="!isPaused" style="background:#ffa502; color:white; border:none; padding:10px 14px; border-radius:6px; font-weight:bold;" @click="togglePause()">暂停</button>
-            <button class="btn" v-else style="background:#1e90ff; color:white; border:none; padding:10px 14px; border-radius:6px; font-weight:bold;" @click="togglePause()">继续</button>
-            <button class="btn" style="background:#ff6b6b; color:white; border:none; padding:10px 14px; border-radius:6px; font-weight:bold;" @click="stopWithUnlock()">停止自动播放</button>
-        </div>
-    </div>
     <div id="slidePanel" style="flex:1; display:flex; flex-direction:column; overflow:auto; background:transparent;">
       
       <!-- Panel 1: PIDS Console -->

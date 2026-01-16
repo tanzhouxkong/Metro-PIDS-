@@ -371,8 +371,8 @@ export default {
       // 注意：track-lines 内部坐标系是从左边 padding 开始算起，
       // 上排和下排直线的右端位置
       const lineRightEnd = rightEdgePosition.value - PADDING_LEFT
-      // 为了让半圆尽量贴近最右侧，这里在直线的右端基础上再向右偏移 40px
-      const x2 = rightEdgePosition.value - PADDING_LEFT + 40
+      // 让半圆向左移动，减少向右的偏移量（从40px减少到10px）
+      const x2 = rightEdgePosition.value - PADDING_LEFT + 30
 
       // 直线高度为 4px，中心分别在 2px 和 trackGap - 2px
       const lineHeight = 4
@@ -548,7 +548,9 @@ export default {
       
       // 上排站点从左到右，均匀分布在整个屏幕宽度上
       const gap = (rightEdgePosition.value - PADDING_LEFT - midPoint * ST_WIDTH) / (midPoint - 1)
-      return PADDING_LEFT + index * (ST_WIDTH + gap)
+      // 第一个站点（index === 0）使用更小的左边距，减少空白
+      const firstStationPadding = index === 0 ? 0 : PADDING_LEFT
+      return firstStationPadding + index * (ST_WIDTH + gap)
     }
     
     // 计算下排站点的位置（从右到左排列，终点站在左边第一个）
@@ -564,8 +566,8 @@ export default {
       const bottomIndex = index - midPoint // 下排中的相对索引（0到bottomCount-1）
       
       if (bottomCount === 1) {
-        // 只有一个下排站点（终点站），显示在左边第一个位置
-        return PADDING_LEFT
+        // 只有一个下排站点（终点站），显示在左边第一个位置，使用更小的左边距
+        return 0
       }
       
       // 计算间距，均匀分布在整个屏幕宽度上
@@ -574,7 +576,9 @@ export default {
       // 下排站点从右到左排列，终点站（最后一个站点）在左边第一个位置
       // 反转顺序：最后一个站点（bottomIndex = bottomCount - 1）应该在左边第一个位置
       const reversedIndex = bottomCount - 1 - bottomIndex
-      return PADDING_LEFT + reversedIndex * (ST_WIDTH + gap)
+      // 第一个站点（reversedIndex === 0）使用更小的左边距，减少空白
+      const firstStationPadding = reversedIndex === 0 ? 0 : PADDING_LEFT
+      return firstStationPadding + reversedIndex * (ST_WIDTH + gap)
     }
 
     // 屏幕适配（窗口打开时检测分辨率和缩放）
@@ -593,33 +597,19 @@ export default {
                              physicalHeight >= 1400 && physicalHeight <= 1500
       
       // 根据分辨率和缩放调整适配策略
-      // 对于高分辨率高缩放，使用更保守的缩放比例
+      // 统一使用1.0的baseScale，确保内容完全填充窗口，避免白边
       let baseScale = 1.0
-      if (is4KResolution) {
-        if (scaleFactor >= 3.0) {
-          baseScale = 0.85 // 4K 300%缩放：稍微缩小
-        } else if (scaleFactor >= 2.5) {
-          baseScale = 0.9 // 4K 250%缩放
-        } else if (scaleFactor >= 2.0) {
-          baseScale = 0.95 // 4K 200%缩放
-        }
-      } else if (is2KResolution) {
-        if (scaleFactor >= 1.75) {
-          baseScale = 0.9 // 2K 175%缩放
-        } else if (scaleFactor >= 1.5) {
-          baseScale = 0.95 // 2K 150%缩放
-        }
-      } else {
-        // 非4K/2K分辨率，根据缩放调整
-        if (scaleFactor >= 1.75) {
-          baseScale = 0.9
-        } else if (scaleFactor >= 1.5) {
-          baseScale = 0.95
-        }
-      }
       
       // 计算基础缩放比例
-      const ratio = Math.min(window.innerWidth / 1500, window.innerHeight / 400) * baseScale
+      // 使用 Math.min 确保内容不超出窗口，但配合 baseScale 调整避免白边
+      const widthRatio = window.innerWidth / 1500
+      const heightRatio = window.innerHeight / 400
+      let ratio = Math.min(widthRatio, heightRatio) * baseScale
+      
+      // 对所有情况都稍微增加缩放比例（1%），确保内容能够完全覆盖窗口，避免白边
+      // 这样可以确保在不同分辨率和缩放比例下都能完全填充窗口
+      ratio = ratio * 1.01
+      
       scaleRatio.value = ratio
     }
 

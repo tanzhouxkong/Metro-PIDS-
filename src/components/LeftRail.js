@@ -95,57 +95,60 @@ export default {
 
         const btnStyle = (panelId) => {
             const isActive = uiState.activePanel === panelId
+            const btnColor = '#1677ff' // 使用和弹窗一样的蓝色
             return {
                 width: '48px',
                 height: '48px',
                 borderRadius: '12px',
                 border: 'none',
-                background: isActive ? 'var(--btn-blue-bg)' : 'var(--rail-btn-bg)',
+                background: isActive ? `linear-gradient(135deg, ${btnColor} 0%, ${btnColor}dd 100%)` : 'var(--rail-btn-bg)',
                 color: isActive ? '#fff' : 'var(--rail-btn-text)',
                 transition: 'all 0.2s',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                boxShadow: isActive ? '0 4px 12px rgba(22, 119, 255, 0.3)' : '0 1px 4px rgba(0,0,0,0.08)',
+                boxShadow: isActive ? `0 4px 12px ${btnColor}40` : '0 1px 4px rgba(0,0,0,0.08)',
                 margin: '0 auto' // 确保按钮在容器中居中
             }
         }
 
         const homeBtnStyle = () => {
             const isActive = uiState.activePanel === null
+            const btnColor = '#1677ff' // 使用和弹窗一样的蓝色
             return {
                 width: '48px',
                 height: '48px',
                 borderRadius: '12px',
                 border: 'none',
-                background: isActive ? 'var(--btn-blue-bg)' : 'var(--rail-btn-bg)',
+                background: isActive ? `linear-gradient(135deg, ${btnColor} 0%, ${btnColor}dd 100%)` : 'var(--rail-btn-bg)',
                 color: isActive ? '#fff' : 'var(--rail-btn-text)',
                 transition: 'all 0.2s',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                boxShadow: isActive ? '0 4px 12px rgba(22, 119, 255, 0.3)' : '0 1px 4px rgba(0,0,0,0.08)',
+                boxShadow: isActive ? `0 4px 12px ${btnColor}40` : '0 1px 4px rgba(0,0,0,0.08)',
                 margin: '0 auto' // 确保按钮在容器中居中
             }
         }
 
         const displayBtnStyle = () => {
             const isActive = uiState.showDisplay
+            const btnColor = '#1677ff' // 使用和弹窗一样的蓝色
             return {
                 width: '48px',
                 height: '48px',
                 borderRadius: '12px',
                 border: 'none',
-                background: isActive ? 'var(--btn-blue-bg)' : 'var(--rail-btn-bg)',
+                background: isActive ? `linear-gradient(135deg, ${btnColor} 0%, ${btnColor}dd 100%)` : 'var(--rail-btn-bg)',
                 color: isActive ? '#fff' : 'var(--rail-btn-text)',
                 transition: 'all 0.2s',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                boxShadow: isActive ? '0 4px 12px rgba(22, 119, 255, 0.3)' : '0 1px 4px rgba(0,0,0,0.08)',
+                boxShadow: isActive ? `0 4px 12px ${btnColor}40` : '0 1px 4px rgba(0,0,0,0.08)',
                 margin: '0 auto' // 确保按钮在容器中居中
             }
         }

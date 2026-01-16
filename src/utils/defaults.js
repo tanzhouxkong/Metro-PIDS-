@@ -202,18 +202,18 @@ export const DEFAULT_SETTINGS = {
                 width: 1900,
                 height: 600,
                 enabled: true,
-                isSystem: false,
+                isSystem: true, // 系统显示器，不允许删除
                 description: '主要显示端，用于主要信息展示'
             },
             'display-2': {
                 id: 'display-2',
-                name: '高仿济南公交LCD屏幕',
+                name: '副显示器',
                 source: 'builtin',
                 url: '',
                 width: 1500,
                 height: 400,
                 enabled: true,
-                isSystem: false,
+                isSystem: true, // 系统显示器，不允许删除
                 description: '辅助显示端，用于补充信息展示'
             }
         }

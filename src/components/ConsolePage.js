@@ -15,6 +15,7 @@ export default {
   setup() {
     const { state: pidsState, sync: syncState } = usePidsState()
     const { next: controllerNext, sync, getStep } = useController()
+    const { uiState } = useUIState()
     const fileIO = useFileIO(pidsState)
     const { settings, saveSettings } = useSettings()
     
@@ -1078,6 +1079,14 @@ export default {
     function stopWithUnlock() {
         stop();
     }
+    
+    // 监听 autoLocked 变化，如果外部设置为 false，则停止自动播放
+    watch(() => uiState.autoLocked, (newVal) => {
+        if (!newVal && isPlaying.value) {
+            // 如果 autoLocked 被设置为 false 且正在播放，则停止
+            try { stop(); } catch (e) {}
+        }
+    });
 
     // 打开线路管理器窗口
     function openLineManagerWindow() {

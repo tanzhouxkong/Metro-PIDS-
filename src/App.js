@@ -1,4 +1,4 @@
-import { onUnmounted } from 'vue'
+import { onUnmounted, Teleport, watch } from 'vue'
 import AdminApp from './components/AdminApp.js'
 import Topbar from './components/Topbar.js'
 import LeftRail from './components/LeftRail.js'
@@ -14,7 +14,7 @@ import { useUIState } from './composables/useUIState.js'
 
 export default {
   name: 'App',
-  components: { AdminApp, Topbar, LeftRail, SlidePanel, ConsolePage, SettingsPage, UnifiedDialogs },
+  components: { AdminApp, Topbar, LeftRail, SlidePanel, ConsolePage, SettingsPage, UnifiedDialogs, Teleport },
   setup() {
     const { uiState } = useUIState()
     const { state: pidState, bcOn } = usePidsState();
@@ -137,7 +137,21 @@ export default {
       }
     }, 500);
 
-    return { pidState, uiState };
+    // 停止自动播放（从遮罩调用）
+    function stopAutoplay() {
+      console.log('[App] 停止自动播放，设置 autoLocked = false');
+      uiState.autoLocked = false;
+      // 通过设置 autoLocked 为 false，SlidePanel 和 ConsolePage 中的 watch 会自动停止自动播放
+    }
+    
+    // 调试：监听 autoLocked 变化
+    if (typeof window !== 'undefined') {
+      watch(() => uiState.autoLocked, (newVal) => {
+        console.log('[App] autoLocked 变化:', newVal);
+      });
+    }
+
+    return { pidState, uiState, stopAutoplay };
   },
   template: `
     <div class="root" style="
@@ -167,6 +181,17 @@ export default {
         </div>
 
         <UnifiedDialogs />
+        
+        <!-- Global auto-play lock overlay (covers entire app) - 使用 Teleport 传送到 body -->
+        <Teleport to="body">
+            <div v-if="uiState.autoLocked" style="position:fixed; inset:0; z-index:999999; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; flex-direction:column; color:#fff; padding:20px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); transition: backdrop-filter .24s ease, background .24s ease; pointer-events: auto;">
+                <div style="font-size:20px; font-weight:800; margin-bottom:10px;">自动播放进行中 — 整个应用已锁定</div>
+                <div style="font-size:14px; opacity:0.95; margin-bottom:18px; text-align:center; max-width:680px;">为避免干扰演示，请勿操作控制面板或其他窗口内容。若需停止自动播放，请使用下面的按钮。</div>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn" style="background:#ff6b6b; color:white; border:none; padding:10px 14px; border-radius:6px; font-weight:bold; cursor:pointer; pointer-events: auto;" @click="stopAutoplay">停止自动播放</button>
+                </div>
+            </div>
+        </Teleport>
     </div>
   `
 }
